@@ -12,7 +12,9 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(135deg, #07111f 0%, #132a43 100%);
+  background:
+    linear-gradient(135deg, rgba(7, 17, 31, 0.82) 0%, rgba(19, 42, 67, 0.86) 100%),
+    url('https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;
 }
 
 button,
@@ -32,7 +34,8 @@ textarea {
 .login-card,
 .dashboard-card {
   width: min(100%, 960px);
-  background: rgba(13, 24, 41, 0.9);
+  background: rgba(10, 18, 32, 0.82);
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   padding: 32px;
