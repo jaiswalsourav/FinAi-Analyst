@@ -109,17 +109,56 @@ function App() {
     e.preventDefault();
     setAnswer('Thinking...');
 
+    const buildAuthHeaders = () => {
+      if (!currentUser) {
+        return {};
+      }
+
+      return {
+        Authorization: `Basic ${btoa(`${currentUser.email}:${currentUser.password}`)}`
+      };
+    };
+
     try {
-      const response = await fetch('http://localhost:8080/api/ask', {
+      const backendResponse = await fetch('http://localhost:8080/api/ask', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...buildAuthHeaders()
+        },
         body: JSON.stringify({ question })
       });
 
-      const data = await response.json();
-      setAnswer(data.answer || 'No response');
-    } catch {
-      setAnswer('Error contacting backend.');
+      if (!backendResponse.ok) {
+        throw new Error(`Backend responded with ${backendResponse.status}`);
+      }
+
+      const backendData = await backendResponse.json();
+      if (backendData.answer) {
+        setAnswer(backendData.answer);
+        return;
+      }
+
+      throw new Error('No response from backend');
+    } catch (backendError) {
+      console.warn('Backend request failed, trying AI service fallback.', backendError);
+
+      try {
+        const aiResponse = await fetch('http://localhost:8001/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+
+        if (!aiResponse.ok) {
+          throw new Error(`AI service responded with ${aiResponse.status}`);
+        }
+
+        const aiData = await aiResponse.json();
+        setAnswer(aiData.answer || 'No response');
+      } catch {
+        setAnswer('Unable to reach the backend or AI service right now.');
+      }
     }
   };
 
