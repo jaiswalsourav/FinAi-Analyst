@@ -163,33 +163,6 @@ export default function StockMarket() {
             />
           </AreaChart>
         </ResponsiveContainer>
-            <defs>
-              <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={isPositive ? '#4ade80' : '#ef4444'} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={isPositive ? '#4ade80' : '#ef4444'} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-            <XAxis dataKey="time" stroke="#8fa2bf" />
-            <YAxis stroke="#8fa2bf" domain={['dataMin - 50', 'dataMax + 50']} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1a202c',
-                border: '1px solid #2d3748',
-                borderRadius: '8px'
-              }}
-              formatter={(value) => value.toFixed(2)}
-            />
-            <Area
-              type="monotone"
-              dataKey="price"
-              stroke={isPositive ? '#4ade80' : '#ef4444'}
-              fillOpacity={1}
-              fill="url(#colorPrice)"
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
       </div>
 
       {/* Top Stocks */}
