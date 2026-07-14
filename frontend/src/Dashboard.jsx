@@ -1,3 +1,5 @@
+import StockMarket from './StockMarket';
+
 export default function DashboardPage({ users, currentUser, question, setQuestion, answer, onLogout, onSubmit }) {
   return (
     <div className="dashboard-card">
@@ -16,6 +18,11 @@ export default function DashboardPage({ users, currentUser, question, setQuestio
       </div>
 
       <div className="dashboard-grid">
+        {/* Stock Market Section */}
+        <div className="result-box" style={{ gridColumn: '1 / -1' }}>
+          <StockMarket />
+        </div>
+
         {currentUser.role === 'admin' ? (
           <div className="result-box">
             <h3 style={{ marginTop: 0 }}>User management</h3>
