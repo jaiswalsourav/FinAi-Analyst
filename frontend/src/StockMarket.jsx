@@ -1,32 +1,113 @@
+import { useState, useEffect } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Mock data for Nifty50
-const niftyChartData = [
-  { time: '09:15', price: 24150 },
-  { time: '10:00', price: 24180 },
-  { time: '10:45', price: 24165 },
-  { time: '11:30', price: 24210 },
-  { time: '12:15', price: 24195 },
-  { time: '13:00', price: 24240 },
-  { time: '13:45', price: 24260 },
-  { time: '14:30', price: 24225 },
-  { time: '15:15', price: 24280 },
-];
-
-const topStocks = [
-  { symbol: 'RELIANCE', name: 'Reliance', price: 2945.50, change: 1.25, changePercent: 0.43 },
-  { symbol: 'TCS', name: 'TCS', price: 3850.00, change: 52.50, changePercent: 1.38 },
-  { symbol: 'INFY', name: 'Infosys', price: 1680.25, change: 28.50, changePercent: 1.72 },
-  { symbol: 'WIPRO', name: 'Wipro', price: 385.75, change: 5.75, changePercent: 1.51 },
-  { symbol: 'ITC', name: 'ITC', price: 432.80, change: -3.20, changePercent: -0.74 },
-  { symbol: 'MARUTI', name: 'Maruti', price: 8920.00, change: -125.00, changePercent: -1.38 },
-];
-
 export default function StockMarket() {
-  const currentNiftyPrice = niftyChartData[niftyChartData.length - 1].price;
-  const previousNiftyPrice = niftyChartData[0].price;
-  const niftyChange = currentNiftyPrice - previousNiftyPrice;
-  const niftyChangePercent = ((niftyChange / previousNiftyPrice) * 100).toFixed(2);
+  const [niftyData, setNiftyData] = useState([]);
+  const [topStocks, setTopStocks] = useState([]);
+  const [currentNiftyPrice, setCurrentNiftyPrice] = useState(0);
+  const [niftyChange, setNiftyChange] = useState(0);
+  const [niftyChangePercent, setNiftyChangePercent] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Finnhub API key (free tier)
+  const FINNHUB_API_KEY = 'cqn3a49r01qpkpfev4d0cqn3a49r01qpkpfev4dg';
+  const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
+
+  useEffect(() => {
+    const fetchStockData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Fetch NIFTY50 data (using ^NSEI for NIFTY50 index)
+        const niftyResponse = await fetch(
+          `${FINNHUB_BASE_URL}/quote?symbol=%5ENSEI&token=${FINNHUB_API_KEY}`
+        );
+        const niftyJson = await niftyResponse.json();
+
+        if (niftyJson.c) {
+          const currentPrice = niftyJson.c;
+          const previousPrice = niftyJson.pc;
+          const change = currentPrice - previousPrice;
+          const changePercent = ((change / previousPrice) * 100).toFixed(2);
+
+          setCurrentNiftyPrice(currentPrice);
+          setNiftyChange(change);
+          setNiftyChangePercent(changePercent);
+
+          // Generate chart data (simulated intraday for now)
+          const chartData = [];
+          const basePrice = previousPrice;
+          for (let i = 0; i < 9; i++) {
+            chartData.push({
+              time: `${9 + Math.floor(i / 1.5)}:${(i * 10) % 60}`,
+              price: basePrice + (Math.random() - 0.4) * 200 + i * 15
+            });
+          }
+          setNiftyData(chartData);
+        }
+
+        // Fetch top Indian stocks
+        const stockSymbols = ['RELIANCE', 'TCS', 'INFY', 'WIPRO', 'ITC', 'MARUTI'];
+        const stocksData = [];
+
+        for (const symbol of stockSymbols) {
+          try {
+            const response = await fetch(
+              `${FINNHUB_BASE_URL}/quote?symbol=${symbol}.NS&token=${FINNHUB_API_KEY}`
+            );
+            const data = await response.json();
+
+            if (data.c) {
+              const change = data.c - data.pc;
+              const changePercent = ((change / data.pc) * 100).toFixed(2);
+              
+              stocksData.push({
+                symbol,
+                name: symbol,
+                price: data.c,
+                change: change.toFixed(2),
+                changePercent
+              });
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch ${symbol}:`, err);
+          }
+        }
+
+        setTopStocks(stocksData);
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch stock data:', err);
+        setError('Unable to load stock data. Please try again later.');
+        setLoading(false);
+      }
+    };
+
+    fetchStockData();
+
+    // Refresh data every 60 seconds
+    const interval = setInterval(fetchStockData, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ width: '100%', padding: '20px', textAlign: 'center' }}>
+        <div style={{ color: '#8fa2bf' }}>Loading stock data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ width: '100%', padding: '20px', textAlign: 'center' }}>
+        <div style={{ color: '#ef4444' }}>{error}</div>
+      </div>
+    );
+  }
+
   const isPositive = niftyChange >= 0;
 
   return (
@@ -54,7 +135,34 @@ export default function StockMarket() {
 
         {/* Chart */}
         <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={niftyChartData}>
+          <AreaChart data={niftyData}>
+            <defs>
+              <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={isPositive ? '#4ade80' : '#ef4444'} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={isPositive ? '#4ade80' : '#ef4444'} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
+            <XAxis dataKey="time" stroke="#8fa2bf" />
+            <YAxis stroke="#8fa2bf" domain={['dataMin - 50', 'dataMax + 50']} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#1a202c',
+                border: '1px solid #2d3748',
+                borderRadius: '8px'
+              }}
+              formatter={(value) => value.toFixed(2)}
+            />
+            <Area
+              type="monotone"
+              dataKey="price"
+              stroke={isPositive ? '#4ade80' : '#ef4444'}
+              fillOpacity={1}
+              fill="url(#colorPrice)"
+              strokeWidth={2}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
             <defs>
               <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={isPositive ? '#4ade80' : '#ef4444'} stopOpacity={0.3} />
@@ -119,7 +227,7 @@ export default function StockMarket() {
                     padding: '12px 8px',
                     color: stock.change >= 0 ? '#4ade80' : '#ef4444'
                   }}>
-                    {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)}
+                    {stock.change >= 0 ? '+' : ''}{stock.change}
                   </td>
                   <td style={{
                     textAlign: 'right',
@@ -127,7 +235,7 @@ export default function StockMarket() {
                     color: stock.change >= 0 ? '#4ade80' : '#ef4444',
                     fontWeight: 500
                   }}>
-                    {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                    {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent}%
                   </td>
                 </tr>
               ))}
