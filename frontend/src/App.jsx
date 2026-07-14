@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import LoginPage from './Login';
+import CreateUserPage from './CreateUser';
+import DashboardPage from './Dashboard';
 
 const initialUsers = [
   { email: 'admin@company.com', password: 'admin123', role: 'admin' }
@@ -120,6 +123,7 @@ function App() {
     };
 
     try {
+      console.log('Sending question to backend', { question, url: 'http://localhost:8080/api/ask' });
       const backendResponse = await fetch('http://localhost:8080/api/ask', {
         method: 'POST',
         headers: {
@@ -129,11 +133,17 @@ function App() {
         body: JSON.stringify({ question })
       });
 
+      console.log('Backend response status', backendResponse.status);
+      const backendData = await backendResponse.json().catch((error) => {
+        console.error('Failed to parse backend response JSON', error);
+        throw new Error('Invalid backend JSON response');
+      });
+
+      console.log('Backend response body', backendData);
       if (!backendResponse.ok) {
         throw new Error(`Backend responded with ${backendResponse.status}`);
       }
 
-      const backendData = await backendResponse.json();
       if (backendData.answer) {
         setAnswer(backendData.answer);
         return;
@@ -144,19 +154,27 @@ function App() {
       console.warn('Backend request failed, trying AI service fallback.', backendError);
 
       try {
+        console.log('Sending question to AI service', { question, url: 'http://localhost:8001/ask' });
         const aiResponse = await fetch('http://localhost:8001/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question })
         });
 
+        console.log('AI service response status', aiResponse.status);
+        const aiData = await aiResponse.json().catch((error) => {
+          console.error('Failed to parse AI service response JSON', error);
+          throw new Error('Invalid AI service JSON response');
+        });
+
+        console.log('AI service response body', aiData);
         if (!aiResponse.ok) {
           throw new Error(`AI service responded with ${aiResponse.status}`);
         }
 
-        const aiData = await aiResponse.json();
         setAnswer(aiData.answer || 'No response');
-      } catch {
+      } catch (aiError) {
+        console.error('AI service request failed', aiError);
         setAnswer('Unable to reach the backend or AI service right now.');
       }
     }
@@ -164,177 +182,52 @@ function App() {
 
   return (
     <div className="app-shell">
-      {view === 'login' && !currentUser ? (
-        <div className="login-card">
-          <div className="brand">
-            <div className="brand-badge">FA</div>
-            <div>
-              <h1 style={{ margin: 0 }}>FinAI Analyst</h1>
-              <p style={{ margin: '4px 0 0', color: '#8fa2bf' }}>Secure workspace</p>
-            </div>
-          </div>
+      {view === 'login' && !currentUser && (
+        <LoginPage
+          email={email}
+          password={password}
+          setEmail={setEmail}
+          setPassword={setPassword}
+          error={error}
+          onLogin={handleLogin}
+          onCreateUser={() => {
+            setError('');
+            setMessage('');
+            setView('create-user');
+          }}
+        />
+      )}
 
-          <p className="subtitle">
-            Sign in to access AI-powered market research, earnings summaries, and financial analysis.
-          </p>
+      {view === 'create-user' && !currentUser && (
+        <CreateUserPage
+          newUserEmail={newUserEmail}
+          newUserPassword={newUserPassword}
+          confirmPassword={confirmPassword}
+          setNewUserEmail={setNewUserEmail}
+          setNewUserPassword={setNewUserPassword}
+          setConfirmPassword={setConfirmPassword}
+          error={error}
+          message={message}
+          onCreateUser={handleCreateUser}
+          onBack={() => {
+            setError('');
+            setMessage('');
+            setView('login');
+          }}
+        />
+      )}
 
-          <form onSubmit={handleLogin}>
-            <div className="form-field">
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="analyst@company.com"
-              />
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-              />
-            </div>
-
-            <button type="submit" className="primary-btn" style={{ width: '100%' }}>
-              Sign In
-            </button>
-            {error ? <p className="error-text">{error}</p> : null}
-          </form>
-
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <button
-              type="button"
-              style={{ background: 'transparent', border: 'none', color: '#7db0ff', cursor: 'pointer', padding: 0 }}
-              onClick={() => setView('create-user')}
-            >
-              Click here to create new user
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {view === 'create-user' && !currentUser ? (
-        <div className="login-card">
-          <div className="brand">
-            <div className="brand-badge">FA</div>
-            <div>
-              <h1 style={{ margin: 0 }}>Create Account</h1>
-              <p style={{ margin: '4px 0 0', color: '#8fa2bf' }}>Create a new normal user account.</p>
-            </div>
-          </div>
-
-          <div className="result-box" style={{ marginTop: 12 }}>
-            <form onSubmit={handleCreateUser}>
-              <div className="form-field">
-                <label htmlFor="newUserEmail">New user email</label>
-                <input
-                  id="newUserEmail"
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="user@company.com"
-                />
-              </div>
-              <div className="form-field">
-                <label htmlFor="newUserPassword">Password</label>
-                <input
-                  id="newUserPassword"
-                  type="password"
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  placeholder="Create password"
-                />
-              </div>
-              <div className="form-field">
-                <label htmlFor="confirmPassword">Confirm Password</label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
-                />
-              </div>
-              <button type="submit" className="primary-btn" style={{ width: '100%' }}>
-                Create User
-              </button>
-            </form>
-            {message ? <p className="helper-text">{message}</p> : null}
-            {error ? <p className="error-text">{error}</p> : null}
-          </div>
-
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <button
-              type="button"
-              style={{ background: 'transparent', border: 'none', color: '#7db0ff', cursor: 'pointer', padding: 0 }}
-              onClick={() => setView('login')}
-            >
-              Back to sign in
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {view === 'dashboard' && currentUser ? (
-        <div className="dashboard-card">
-          <div className="dashboard-header">
-            <div>
-              <h2 style={{ margin: 0 }}>Welcome back, {currentUser.email}</h2>
-              <p className="subtitle" style={{ margin: '4px 0 0' }}>
-                {currentUser.role === 'admin'
-                  ? 'You can manage users and run AI-assisted analysis.'
-                  : 'Ask questions and get AI-assisted financial insights.'}
-              </p>
-            </div>
-            <button className="small-btn" onClick={handleLogout}>
-              Sign out
-            </button>
-          </div>
-
-          <div className="dashboard-grid">
-            {currentUser.role === 'admin' ? (
-              <div className="result-box">
-                <h3 style={{ marginTop: 0 }}>User management</h3>
-                <p style={{ marginTop: 0 }}>Created users:</p>
-                <ul>
-                  {users.map((user) => (
-                    <li key={user.email}>
-                      {user.email} <span style={{ color: '#8fa2bf' }}>({user.role})</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            <form onSubmit={handleSubmit} className="result-box">
-              <div className="form-field">
-                <label htmlFor="question">Financial question</label>
-                <textarea
-                  id="question"
-                  rows="4"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Example: Compare Apple and Microsoft based on recent revenue growth"
-                />
-              </div>
-              <button type="submit" className="primary-btn">
-                Analyze
-              </button>
-            </form>
-
-            <div className="result-box">
-              <h3 style={{ marginTop: 0 }}>Analysis</h3>
-              <p style={{ marginBottom: 0, lineHeight: 1.7 }}>{answer || 'Your insights will appear here.'}</p>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {view === 'dashboard' && currentUser && (
+        <DashboardPage
+          users={users}
+          currentUser={currentUser}
+          question={question}
+          setQuestion={setQuestion}
+          answer={answer}
+          onLogout={handleLogout}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }
