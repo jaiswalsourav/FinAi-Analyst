@@ -28,12 +28,16 @@ class AskRequest(BaseModel):
 model = None
 model_error = None
 active_model_name = None
-MODEL_CANDIDATES = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-latest"]
+MODEL_CANDIDATES = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest", "gemini-1.5-flash-latest"]
+
+def new_func():
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    return api_key
 
 try:
     import google.generativeai as genai
 
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    api_key = new_func()
     if api_key:
         genai.configure(api_key=api_key)
         for candidate in MODEL_CANDIDATES:
@@ -68,19 +72,4 @@ def ask(req: AskRequest):
         response = model.generate_content(prompt)
         return {"answer": response.text}
     except Exception as exc:
-        fallback_error = str(exc)
-        for candidate in MODEL_CANDIDATES:
-            if candidate == active_model_name:
-                continue
-            try:
-                import google.generativeai as genai
-
-                fallback_model = genai.GenerativeModel(candidate)
-                response = fallback_model.generate_content(prompt)
-                model = fallback_model
-                active_model_name = candidate
-                return {"answer": response.text}
-            except Exception:
-                continue
-
-        return {"answer": f"Gemini request failed: {fallback_error}"}
+        return {"answer": f"Gemini request failed: {exc}"}
