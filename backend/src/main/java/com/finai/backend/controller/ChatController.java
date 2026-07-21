@@ -22,13 +22,15 @@ public class ChatController {
     @PostMapping("/ask")
     public Map<String, String> ask(@RequestBody Map<String, String> payload, Authentication authentication) {
         String question = payload.getOrDefault("question", "");
+        System.out.println("Received /api/ask request with question: " + question);
         String username = authentication != null ? authentication.getName() : "anonymous";
         logger.info("Received /api/ask request from user={}, question={}", username, question);
 
         RestTemplate restTemplate = new RestTemplate();
         try {
             Map<String, String> response = restTemplate.postForObject(aiServiceUrl + "/ask", Map.of("question", question), Map.class);
-            logger.info("AI service response for user={}: {}", username, response);
+            logger.info("AI service response for user={}: {}", username, response); 
+            System.out.println("AI service response for user=" + username + ": " + response);
             String answer = response != null ? String.valueOf(response.getOrDefault("answer", "No response")) : "No response";
             return Map.of("answer", answer, "user", username);
         } catch (Exception ex) {

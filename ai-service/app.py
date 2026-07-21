@@ -1,75 +1,133 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
-load_dotenv()
+from google import genai
+
+
+# ==========================
+# Load Environment
+# ==========================
+
+env_path = Path(__file__).parent / ".env"
+load_dotenv(env_path)
+
+api_key = os.getenv("GEMINI_API_KEY")
+
+
+print("Env:", env_path)
+print("API Key Loaded:", bool(api_key))
+
+
+# ==========================
+# FastAPI
+# ==========================
 
 app = FastAPI()
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+# ==========================
+# Request Model
+# ==========================
+
 class AskRequest(BaseModel):
     question: str
 
-model = None
-model_error = None
-active_model_name = None
-MODEL_CANDIDATES = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest", "gemini-1.5-flash-latest"]
 
-def new_func():
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    return api_key
 
-try:
-    import google.generativeai as genai
+# ==========================
+# Gemini Setup
+# ==========================
 
-    api_key = new_func()
-    if api_key:
-        genai.configure(api_key=api_key)
-        for candidate in MODEL_CANDIDATES:
-            try:
-                model = genai.GenerativeModel(candidate)
-                active_model_name = candidate
-                break
-            except Exception as exc:
-                model_error = str(exc)
-except Exception as exc:
-    model_error = str(exc)
+client = None
+
+MODEL = "gemini-2.0-flash"
+
+
+if api_key:
+    try:
+        client = genai.Client(
+            api_key=api_key
+        )
+
+        print("Gemini Connected")
+
+    except Exception as e:
+        print("Gemini Error:", e)
+
+
+
+# ==========================
+# Health Check
+# ==========================
 
 @app.get("/health")
 def health():
+
     return {
         "status": "ok",
-        "gemini_ready": bool(model),
-        "message": "Gemini is ready" if model else "Set GEMINI_API_KEY to enable Gemini responses",
-        "active_model": active_model_name or "none"
+        "gemini": client is not None,
+        "model": MODEL
     }
+
+
+
+# ==========================
+# Ask API
+# ==========================
 
 @app.post("/ask")
 def ask(req: AskRequest):
-    if not model:
-        if not os.getenv("GEMINI_API_KEY", "").strip():
-            return {"answer": "Gemini API key not configured. Set GEMINI_API_KEY to enable AI responses."}
-        return {"answer": f"Gemini client could not be initialized: {model_error}"}
 
-    prompt = f"You are a financial analyst assistant. Answer the user's question clearly and concisely.\n\nQuestion: {req.question}"
+    if client is None:
+        return {
+            "answer": "Gemini not initialized"
+        }
+
 
     try:
-        response = model.generate_content(prompt)
-        return {"answer": response.text}
-    except Exception as exc:
-        return {"answer": f"Gemini request failed: {exc}"}
+
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=req.question
+        )
+
+
+        return {
+            "answer": response.text
+        }
+
+
+    except Exception as e:
+
+        return {
+            "answer": str(e)
+        }
+
+
+
+# ==========================
+# Run
+# ==========================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8001
+    )
