@@ -3,6 +3,7 @@ import './App.css';
 import LoginPage from './Login';
 import CreateUserPage from './CreateUser';
 import DashboardPage from './Dashboard';
+import ProfilePage from './Profile';
 
 const initialUsers = [
   { email: 'admin@company.com', password: 'admin123', role: 'admin' }
@@ -226,6 +227,14 @@ function App() {
           answer={answer}
           onLogout={handleLogout}
           onSubmit={handleSubmit}
+          onOpenProfile={() => setView('profile')}
+        />
+      )}
+
+      {view === 'profile' && currentUser && (
+        <ProfilePage
+          currentUser={currentUser}
+          onBack={() => setView('dashboard')}
         />
       )}
     </div>

@@ -83,6 +83,8 @@ def health():
     }
 
 
+    import requests
+    from typing import Optional
 
 # ==========================
 # Ask API
@@ -95,6 +97,7 @@ def ask(req: AskRequest):
         return {
             "answer": "Gemini not initialized"
         }
+    alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
 
 
     try:
@@ -117,6 +120,89 @@ def ask(req: AskRequest):
         }
 
 
+@app.get('/stock-info')
+def stock_info(symbol: Optional[str] = None):
+    if not symbol:
+        return {"error": "symbol required"}
+
+    if not alpha_key:
+        return {"error": "Alpha Vantage key not configured"}
+
+    try:
+        base = 'https://www.alphavantage.co/query'
+        # Global quote
+        gq = requests.get(base, params={
+            'function': 'GLOBAL_QUOTE',
+            'symbol': symbol,
+            'apikey': alpha_key
+        }, timeout=10).json()
+
+        # Time series daily (compact)
+        ts = requests.get(base, params={
+            'function': 'TIME_SERIES_DAILY_ADJUSTED',
+            'symbol': symbol,
+            'outputsize': 'compact',
+            'apikey': alpha_key
+        }, timeout=10).json()
+
+        return {
+            'global_quote': gq.get('Global Quote', {}),
+            'time_series': ts.get('Time Series (Daily)', {})
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post('/ask-stock')
+def ask_stock(req: AskStockRequest):
+    if client is None:
+        return {"answer": "Gemini not initialized"}
+
+    # Fetch recent stock data to provide context
+    stock_context = {}
+    if alpha_key:
+        try:
+            base = 'https://www.alphavantage.co/query'
+            gq = requests.get(base, params={
+                'function': 'GLOBAL_QUOTE',
+                'symbol': req.symbol,
+                'apikey': alpha_key
+            }, timeout=10).json()
+
+            ts = requests.get(base, params={
+                'function': 'TIME_SERIES_DAILY_ADJUSTED',
+                'symbol': req.symbol,
+                'outputsize': 'compact',
+                'apikey': alpha_key
+            }, timeout=10).json()
+
+            stock_context = {
+                'global_quote': gq.get('Global Quote', {}),
+                'time_series': ts.get('Time Series (Daily)', {})
+            }
+        except Exception as e:
+            stock_context = {'error': f'Failed to fetch stock data: {e}'}
+
+    # Build prompt
+    prompt = f"You are a helpful finance assistant. The user is asking about {req.symbol}.\n"
+    if stock_context:
+        prompt += f"Here is recent market data: {stock_context}\n"
+
+    prompt += f"User question: {req.question}\nAnswer concisely and focus on the symbol provided."
+
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=prompt
+        )
+
+        return {"answer": response.text}
+
+    except Exception as e:
+        return {"answer": str(e)}
+
+
 
 # ==========================
 # Run
@@ -130,4 +216,9 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8001
+
+
+        class AskStockRequest(BaseModel):
+            symbol: str
+            question: str
     )

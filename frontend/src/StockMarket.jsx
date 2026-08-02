@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+/*
+  StockMarket.jsx
+  - Fetches and displays an overview (NIFTY 50) and a list of top movers.
+  - Uses Finnhub for quick index and stock quotes (this is separate from
+    per-symbol Alpha Vantage lookups used elsewhere).
+  - Renders an area chart for the NIFTY overview and a table of top movers.
+*/
+
 export default function StockMarket() {
   const [niftyData, setNiftyData] = useState([]);
   const [topStocks, setTopStocks] = useState([]);
@@ -26,6 +34,8 @@ export default function StockMarket() {
         );
         const niftyJson = await niftyResponse.json();
 
+        // If Finnhub returns a valid current price, compute change and generate
+        // light-weight chart data for the NIFTY overview section.
         if (niftyJson.c) {
           const currentPrice = niftyJson.c;
           const previousPrice = niftyJson.pc;
@@ -52,6 +62,8 @@ export default function StockMarket() {
         const stockSymbols = ['RELIANCE', 'TCS', 'INFY', 'WIPRO', 'ITC', 'MARUTI'];
         const stocksData = [];
 
+        // Fetch quotes for each top stock symbol and build a compact list to
+        // display in the Top Movers table.
         for (const symbol of stockSymbols) {
           try {
             const response = await fetch(

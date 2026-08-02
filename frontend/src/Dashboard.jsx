@@ -1,6 +1,17 @@
 import { useState } from "react";
 import StockMarket from "./StockMarket";
 import StockChart from "./StockChart";
+import StockDetail from "./StockDetail";
+import StockChat from "./StockChat";
+
+/*
+  Dashboard.jsx
+  - Top-level dashboard layout for the app.
+  - Provides a search box to switch the displayed stock symbol.
+  - Shows the TradingView chart (`StockChart`), stock details (`StockDetail`),
+    and a chat panel scoped to the currently selected symbol (`StockChat`).
+  - Contains header with profile menu and sign-out control.
+*/
 
 const companyMap = {
   APPLE: "NASDAQ:AAPL",
@@ -26,9 +37,14 @@ export default function DashboardPage({
   onLogout,
   onSubmit,
 }) {
+  const [profileOpen, setProfileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [symbol, setSymbol] = useState("NASDAQ:AAPL");
 
+  const initials = currentUser?.email?.split('@')[0]?.[0]?.toUpperCase() || 'U';
+
+  // handleSearch: convert friendly names (Apple, TCS) to exchange symbols
+  // and update `symbol` used by the chart / details / chat components.
   const handleSearch = () => {
     if (!search.trim()) return;
 
@@ -52,9 +68,54 @@ export default function DashboardPage({
           </p>
         </div>
 
-        <button className="small-btn" onClick={onLogout}>
-          Sign out
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button
+            className="small-btn"
+            onClick={() => setProfileOpen((s) => !s)}
+            aria-label="Open profile menu"
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <div style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              background: 'linear-gradient(135deg,#4f8cff,#3b82f6)',
+              display: 'grid',
+              placeItems: 'center',
+              fontWeight: 700,
+              color: '#061826'
+            }}>{initials}</div>
+          </button>
+
+          {profileOpen && (
+            <div style={{
+              position: 'absolute',
+              right: 0,
+              marginTop: 8,
+              background: '#071826',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: 12,
+              padding: 8,
+              minWidth: 220,
+              zIndex: 40
+            }}>
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                <strong style={{ display: 'block' }}>{currentUser.email}</strong>
+                <small style={{ color: '#8fa2bf' }}>{currentUser.role}</small>
+              </div>
+
+              <button className="small-btn" style={{ width: '100%', marginTop: 8, textAlign: 'left' }} onClick={() => { setProfileOpen(false); onOpenProfile && onOpenProfile(); }}>Profile Details</button>
+              <button className="small-btn" style={{ width: '100%', marginTop: 6, textAlign: 'left' }} onClick={() => { alert('DMAT account placeholder'); setProfileOpen(false); }}>DMAT Account</button>
+              <button className="small-btn" style={{ width: '100%', marginTop: 6, textAlign: 'left' }} onClick={() => { alert('Bank details placeholder'); setProfileOpen(false); }}>Bank Details</button>
+              <button className="small-btn" style={{ width: '100%', marginTop: 6, textAlign: 'left' }} onClick={() => { alert('Reports placeholder'); setProfileOpen(false); }}>Reports</button>
+              <button className="small-btn" style={{ width: '100%', marginTop: 6, textAlign: 'left' }} onClick={() => { alert('Support placeholder'); setProfileOpen(false); }}>Support</button>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.03)', marginTop: 8, paddingTop: 8 }}>
+                <button className="small-btn" style={{ width: '100%', textAlign: 'left' }} onClick={() => { setProfileOpen(false); onLogout(); }}>Logout</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Search Bar at Top */}
@@ -97,22 +158,26 @@ export default function DashboardPage({
         </div>
       </div>
 
-      {/* Company Chart */}
-      <div
-        className="result-box"
-        style={{ marginBottom: "20px" }}
-      >
-        <StockChart symbol={symbol} />
+      {/* Company Chart + Details + Chat */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        <div className="result-box">
+          <StockChart symbol={symbol} />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <StockDetail symbol={symbol} />
+          <StockChat symbol={symbol} />
+        </div>
       </div>
 
       {/* Existing Dashboard */}
       <div className="dashboard-grid">
-        <div
-          className="result-box"
-          style={{ gridColumn: "1 / -1" }}
-        >
-          <StockMarket />
-        </div>
+  {/* <div
+    className="result-box"
+    style={{ gridColumn: "1 / -1" }}
+  >
+    <StockMarket />
+  </div> */}
 
         {currentUser.role === "admin" && (
           <div className="result-box">

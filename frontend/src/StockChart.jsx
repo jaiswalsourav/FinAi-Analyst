@@ -1,9 +1,18 @@
 import { useEffect, useRef } from "react";
 
+/*
+  StockChart.jsx
+  - Embeds TradingView's advanced chart widget into the page for interactive
+  - symbol charting. The `symbol` prop controls which instrument is displayed.
+  - The component injects the TradingView embed script each time the symbol
+  - changes. Using a ref ensures the container is replaced cleanly.
+*/
 export default function StockChart({ symbol }) {
   const container = useRef();
 
   useEffect(() => {
+    // Clear previous widget (if any) before inserting a new one for the
+    // updated symbol.
     container.current.innerHTML = "";
 
     const script = document.createElement("script");
@@ -13,6 +22,7 @@ export default function StockChart({ symbol }) {
 
     script.async = true;
 
+    // TradingView expects JSON config inside the script tag.
     script.innerHTML = JSON.stringify({
       autosize: true,
       symbol: symbol,

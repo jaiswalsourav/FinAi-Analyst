@@ -5,7 +5,7 @@ export default function CreateUserPage({ newUserEmail, newUserPassword, confirmP
         <div className="brand-badge">FA</div>
         <div>
           <h1 style={{ margin: 0 }}>Create Account</h1>
-          <p style={{ margin: '4px 0 0', color: '#8fa2bf' }}>Create a new normal user account.</p>
+          <p style={{ margin: '4px 0 0', color: '#1dac2e' }}>Create a new user account.</p>
         </div>
       </div>
 
