@@ -5,6 +5,7 @@ import com.finai.backend.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -32,5 +33,9 @@ public class UserService {
 
     public boolean existsByEmail(String email) {
         return findByEmail(email).isPresent();
+    }
+
+    public List<UserEntity> listUsers() {
+        return userRepository.findAll();
     }
 }

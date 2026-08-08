@@ -52,6 +52,8 @@ export default function DashboardPage({
     setSymbol(companyMap[key] || key);
   };
 
+  const [showUserList, setShowUserList] = useState(false);
+
   return (
     <div className="dashboard-card">
       {/* Header */}
@@ -66,6 +68,17 @@ export default function DashboardPage({
               ? "You can manage users and run AI-assisted analysis."
               : "Ask questions and get AI-assisted financial insights."}
           </p>
+
+          {currentUser.role === "admin" && (
+            <button
+              type="button"
+              className="primary-btn"
+              style={{ marginTop: 12 }}
+              onClick={() => setShowUserList((visible) => !visible)}
+            >
+              {showUserList ? 'Hide users' : 'View all users'}
+            </button>
+          )}
         </div>
 
         <div style={{ position: 'relative' }}>
@@ -179,7 +192,7 @@ export default function DashboardPage({
     <StockMarket />
   </div> */}
 
-        {currentUser.role === "admin" && (
+        {currentUser.role === "admin" && showUserList && (
           <div className="result-box">
             <h3>User Management</h3>
 

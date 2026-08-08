@@ -5,29 +5,8 @@ import CreateUserPage from './CreateUser';
 import DashboardPage from './Dashboard';
 import ProfilePage from './Profile';
 
-const initialUsers = [
-  { email: 'admin@company.com', password: 'admin123', role: 'admin' }
-];
-
-const loadUsers = () => {
-  if (typeof window === 'undefined') {
-    return initialUsers;
-  }
-
-  const savedUsers = window.localStorage.getItem('finai-users');
-  if (!savedUsers) {
-    return initialUsers;
-  }
-
-  try {
-    return JSON.parse(savedUsers);
-  } catch {
-    return initialUsers;
-  }
-};
-
 function App() {
-  const [users, setUsers] = useState(loadUsers);
+  const [users, setUsers] = useState([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -36,15 +15,44 @@ function App() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  const [currentUserPassword, setCurrentUserPassword] = useState('');
   const [view, setView] = useState('login');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
 
-  useEffect(() => {
-    window.localStorage.setItem('finai-users', JSON.stringify(users));
-  }, [users]);
+  const buildAuthHeaders = (emailValue, passwordValue) => {
+    if (!emailValue || !passwordValue) {
+      return {};
+    }
 
-  const handleLogin = (e) => {
+    return {
+      Authorization: `Basic ${btoa(`${emailValue}:${passwordValue}`)}`
+    };
+  };
+
+  const fetchUsers = async (authHeaders) => {
+    try {
+      const response = await fetch('http://localhost:8080/api/users', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to load users');
+      }
+
+      const data = await response.json();
+      setUsers(data);
+    } catch (fetchError) {
+      console.error('Failed to fetch users', fetchError);
+      setUsers([]);
+    }
+  };
+
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     if (!email || !password) {
@@ -52,22 +60,40 @@ function App() {
       return;
     }
 
-    const foundUser = users.find(
-      (user) => user.email.toLowerCase() === email.trim().toLowerCase() && user.password === password
-    );
+    const trimmedEmail = email.trim().toLowerCase();
+    const authHeaders = buildAuthHeaders(trimmedEmail, password);
 
-    if (!foundUser) {
-      setError('Invalid credentials.');
-      return;
+    try {
+      const response = await fetch('http://localhost:8080/api/me', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+      });
+
+      if (!response.ok) {
+        setError('Invalid credentials.');
+        return;
+      }
+
+      const userData = await response.json();
+      setCurrentUser(userData);
+      setCurrentUserPassword(password);
+      setError('');
+      setMessage('');
+      setView('dashboard');
+
+      if (userData.role === 'ADMIN') {
+        await fetchUsers(authHeaders);
+      }
+    } catch (loginError) {
+      console.error('Login failed', loginError);
+      setError('Unable to authenticate.');
     }
-
-    setCurrentUser(foundUser);
-    setError('');
-    setMessage('');
-    setView('dashboard');
   };
 
-  const handleCreateUser = (e) => {
+  const handleCreateUser = async (e) => {
     e.preventDefault();
 
     const trimmedEmail = newUserEmail.trim().toLowerCase();
@@ -83,23 +109,36 @@ function App() {
       return;
     }
 
-    if (users.some((user) => user.email.toLowerCase() === trimmedEmail)) {
-      setError('That user already exists.');
-      return;
-    }
+    try {
+      const response = await fetch('http://localhost:8080/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
+      });
 
-    const newUser = { email: trimmedEmail, password: trimmedPassword, role: 'user' };
-    setUsers((prev) => [...prev, newUser]);
-    setNewUserEmail('');
-    setNewUserPassword('');
-    setConfirmPassword('');
-    setError('');
-    setMessage(`User ${trimmedEmail} was created successfully.`);
-    setView('login');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        setError(errorData?.message || 'Failed to create user.');
+        return;
+      }
+
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setConfirmPassword('');
+      setError('');
+      setMessage(`User ${trimmedEmail} was created successfully. Please sign in.`);
+      setView('login');
+    } catch (createError) {
+      console.error('Create user failed', createError);
+      setError('Unable to create user.');
+    }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setCurrentUserPassword('');
     setEmail('');
     setPassword('');
     setQuestion('');
@@ -114,12 +153,12 @@ function App() {
     setAnswer('Thinking...');
 
     const buildAuthHeaders = () => {
-      if (!currentUser) {
+      if (!currentUser || !currentUserPassword) {
         return {};
       }
 
       return {
-        Authorization: `Basic ${btoa(`${currentUser.email}:${currentUser.password}`)}`
+        Authorization: `Basic ${btoa(`${currentUser.email}:${currentUserPassword}`)}`
       };
     };
 
