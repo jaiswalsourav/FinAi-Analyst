@@ -1,0 +1,27 @@
+services:
+  frontend:
+    image: souravjaiswal1/finaianalyst-frontend:v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+      - ai-service
+    restart: unless-stopped
+
+  backend:
+    image: souravjaiswal1/finaianalyst-backend:v1
+    ports:
+      - "8080:8080"
+    environment:
+      AI_SERVICE_URL: http://ai-service:8001
+    depends_on:
+      - ai-service
+    restart: unless-stopped
+
+  ai-service:
+    image: souravjaiswal1/finaianalyst-ai-service:v1
+    ports:
+      - "8001:8001"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    restart: unless-stopped
