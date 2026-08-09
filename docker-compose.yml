@@ -1,5 +1,6 @@
 services:
   frontend:
+    image: jaiswalsourav/finaianalyst-frontend:v1
     build: ./frontend
     ports:
       - "3000:3000"
@@ -8,6 +9,7 @@ services:
       - ai-service
 
   backend:
+    image: jaiswalsourav/finaianalyst-backend:v1
     build: ./backend
     ports:
       - "8080:8080"
@@ -17,6 +19,7 @@ services:
       - ai-service
 
   ai-service:
+    image: jaiswalsourav/finaianalyst-ai-service:v1
     build: ./ai-service
     ports:
       - "8001:8001"

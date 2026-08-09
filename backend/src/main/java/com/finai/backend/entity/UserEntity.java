@@ -1,6 +1,7 @@
 package com.finai.backend.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -18,6 +19,12 @@ public class UserEntity {
 
     @Column(nullable = false)
     private String role;
+
+    @Column(name = "password_reset_token")
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_expiration")
+    private LocalDateTime passwordResetExpiration;
 
     public UserEntity() {}
 
@@ -53,5 +60,21 @@ public class UserEntity {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getPasswordResetToken() {
+        return passwordResetToken;
+    }
+
+    public void setPasswordResetToken(String passwordResetToken) {
+        this.passwordResetToken = passwordResetToken;
+    }
+
+    public LocalDateTime getPasswordResetExpiration() {
+        return passwordResetExpiration;
+    }
+
+    public void setPasswordResetExpiration(LocalDateTime passwordResetExpiration) {
+        this.passwordResetExpiration = passwordResetExpiration;
     }
 }

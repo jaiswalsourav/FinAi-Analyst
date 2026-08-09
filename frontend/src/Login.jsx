@@ -1,4 +1,4 @@
-export default function LoginPage({ email, password, setEmail, setPassword, error, onLogin, onCreateUser }) {
+export default function LoginPage({ email, password, setEmail, setPassword, error, onLogin, onCreateUser, onForgotPassword }) {
   return (
     <div className="login-card">
       <div className="brand">
@@ -49,6 +49,16 @@ export default function LoginPage({ email, password, setEmail, setPassword, erro
           onClick={onCreateUser}
         >
           Click here to create new user
+        </button>
+      </div>
+
+      <div style={{ marginTop: 12, textAlign: 'center' }}>
+        <button
+          type="button"
+          style={{ background: 'transparent', border: 'none', color: '#7db0ff', cursor: 'pointer', padding: 0 }}
+          onClick={onForgotPassword}
+        >
+          Forgot password?
         </button>
       </div>
     </div>

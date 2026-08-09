@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import LoginPage from './Login';
 import CreateUserPage from './CreateUser';
+import ForgotPasswordPage from './ForgotPassword';
+import ResetPasswordPage from './ResetPassword';
 import DashboardPage from './Dashboard';
 import ProfilePage from './Profile';
 
 function App() {
   const [users, setUsers] = useState([]);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -136,6 +142,85 @@ function App() {
     }
   };
 
+  const handleForgotPasswordRequest = async (e) => {
+    e.preventDefault();
+
+    const trimmedEmail = resetEmail.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setError('Please enter your email address.');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:8080/api/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        setError(errorData?.message || 'Unable to request password reset.');
+        return;
+      }
+
+      const data = await response.json();
+      setError('');
+      setMessage(`Password reset token created. Use the token below to reset your password.`);
+      setResetToken(data.token || '');
+      setView('reset-password');
+    } catch (forgotError) {
+      console.error('Forgot password failed', forgotError);
+      setError('Unable to request password reset.');
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+
+    const trimmedToken = resetToken.trim();
+    const trimmedPassword = resetNewPassword.trim();
+
+    if (!trimmedToken || !trimmedPassword || !resetConfirmPassword) {
+      setError('Token, new password, and confirmation are required.');
+      return;
+    }
+
+    if (trimmedPassword !== resetConfirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:8080/api/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token: trimmedToken, password: trimmedPassword }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        setError(errorData?.message || 'Unable to reset password.');
+        return;
+      }
+
+      setResetToken('');
+      setResetNewPassword('');
+      setResetConfirmPassword('');
+      setResetEmail('');
+      setError('');
+      setMessage('Your password has been reset. Please sign in with your new password.');
+      setView('login');
+    } catch (resetError) {
+      console.error('Reset password failed', resetError);
+      setError('Unable to reset password.');
+    }
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
     setCurrentUserPassword('');
@@ -235,6 +320,15 @@ function App() {
             setMessage('');
             setView('create-user');
           }}
+          onForgotPassword={() => {
+            setError('');
+            setMessage('');
+            setResetEmail('');
+            setResetToken('');
+            setResetNewPassword('');
+            setResetConfirmPassword('');
+            setView('forgot-password');
+          }}
         />
       )}
 
@@ -249,6 +343,40 @@ function App() {
           error={error}
           message={message}
           onCreateUser={handleCreateUser}
+          onBack={() => {
+            setError('');
+            setMessage('');
+            setView('login');
+          }}
+        />
+      )}
+
+      {view === 'forgot-password' && !currentUser && (
+        <ForgotPasswordPage
+          resetEmail={resetEmail}
+          setResetEmail={setResetEmail}
+          error={error}
+          message={message}
+          onRequestReset={handleForgotPasswordRequest}
+          onBack={() => {
+            setError('');
+            setMessage('');
+            setView('login');
+          }}
+        />
+      )}
+
+      {view === 'reset-password' && !currentUser && (
+        <ResetPasswordPage
+          resetToken={resetToken}
+          setResetToken={setResetToken}
+          resetNewPassword={resetNewPassword}
+          resetConfirmPassword={resetConfirmPassword}
+          setResetNewPassword={setResetNewPassword}
+          setResetConfirmPassword={setResetConfirmPassword}
+          error={error}
+          message={message}
+          onResetPassword={handleResetPassword}
           onBack={() => {
             setError('');
             setMessage('');
