@@ -1,15 +1,21 @@
 package com.finai.backend.controller;
 
 import com.finai.backend.entity.UserEntity;
+import com.finai.backend.security.JwtUtil;
 import com.finai.backend.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -21,26 +27,54 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 public class UserController {
 
-    private final UserService userService;
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
-    public UserController(UserService userService) {
+    private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+
+    @Autowired
+    public UserController(UserService userService, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userService = userService;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
         if (request.getEmail() == null || request.getEmail().isBlank() || request.getPassword() == null
                 || request.getPassword().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email and password are required.");
         }
 
         if (userService.existsByEmail(request.getEmail())) {
+            logger.info("Registration failed: user already exists email={}", request.getEmail());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists.");
         }
 
         UserEntity created = userService.createUser(request.getEmail(), request.getPassword(), "USER");
-        return new UserResponse(created.getId(), created.getEmail(), created.getRole());
+        logger.info("User registered successfully email={} role={}", created.getEmail(), created.getRole());
+        return new ResponseEntity<>("User Created Successfully", HttpStatus.CREATED);
+    }
+
+    @PostMapping("/login")
+    public AuthResponse login(@RequestBody LoginRequest request) {
+        if (request.getEmail() == null || request.getEmail().isBlank() || request.getPassword() == null
+                || request.getPassword().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email and password are required.");
+        }
+
+        UserEntity user = userService.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            logger.warn("Invalid login attempt for email={}", request.getEmail());
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+        logger.info("Login successful for email={}", user.getEmail());
+        return new AuthResponse(token);
     }
 
     @PostMapping("/forgot-password")
@@ -95,21 +129,29 @@ public class UserController {
         private String email;
         private String password;
 
-        public String getEmail() {
-            return email;
-        }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
 
-        public void setEmail(String email) {
-            this.email = email;
-        }
+    public static class LoginRequest {
+        private String email;
+        private String password;
 
-        public String getPassword() {
-            return password;
-        }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
 
-        public void setPassword(String password) {
-            this.password = password;
-        }
+    public static class AuthResponse {
+        private String token;
+
+        public AuthResponse(String token) { this.token = token; }
+
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
     }
 
     public static class UserResponse {
@@ -123,50 +165,26 @@ public class UserController {
             this.role = role;
         }
 
-        public Long getId() {
-            return id;
-        }
-
-        public String getEmail() {
-            return email;
-        }
-
-        public String getRole() {
-            return role;
-        }
+        public Long getId() { return id; }
+        public String getEmail() { return email; }
+        public String getRole() { return role; }
     }
 
     public static class ForgotPasswordRequest {
         private String email;
 
-        public String getEmail() {
-            return email;
-        }
-
-        public void setEmail(String email) {
-            this.email = email;
-        }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
     }
 
     public static class ResetPasswordRequest {
         private String token;
         private String password;
 
-        public String getToken() {
-            return token;
-        }
-
-        public void setToken(String token) {
-            this.token = token;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
+        public String getToken() { return token; }
+        public void setToken(String token) { this.token = token; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
     }
 
     public static class PasswordResetResponse {
@@ -180,16 +198,8 @@ public class UserController {
             this.message = message;
         }
 
-        public String getEmail() {
-            return email;
-        }
-
-        public String getToken() {
-            return token;
-        }
-
-        public String getMessage() {
-            return message;
-        }
+        public String getEmail() { return email; }
+        public String getToken() { return token; }
+        public String getMessage() { return message; }
     }
 }

@@ -21,28 +21,28 @@ function App() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
-  const [currentUserPassword, setCurrentUserPassword] = useState('');
+  const [token, setToken] = useState('');
   const [view, setView] = useState('login');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
 
-  const buildAuthHeaders = (emailValue, passwordValue) => {
-    if (!emailValue || !passwordValue) {
+  const buildAuthHeaders = () => {
+    if (!token) {
       return {};
     }
 
     return {
-      Authorization: `Basic ${btoa(`${emailValue}:${passwordValue}`)}`
+      Authorization: `Bearer ${token}`
     };
   };
 
-  const fetchUsers = async (authHeaders) => {
+  const fetchUsers = async () => {
     try {
       const response = await fetch('http://localhost:8080/api/users', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
+          ...buildAuthHeaders(),
         },
       });
 
@@ -67,15 +67,14 @@ function App() {
     }
 
     const trimmedEmail = email.trim().toLowerCase();
-    const authHeaders = buildAuthHeaders(trimmedEmail, password);
 
     try {
-      const response = await fetch('http://localhost:8080/api/me', {
-        method: 'GET',
+      const response = await fetch('http://localhost:8080/api/login', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
         },
+        body: JSON.stringify({ email: trimmedEmail, password }),
       });
 
       if (!response.ok) {
@@ -83,15 +82,35 @@ function App() {
         return;
       }
 
-      const userData = await response.json();
-      setCurrentUser(userData);
-      setCurrentUserPassword(password);
+      const data = await response.json();
+      const jwtToken = data.token;
+      if (!jwtToken) {
+        setError('Invalid login response.');
+        return;
+      }
+
+      setToken(jwtToken);
+      const userData = await fetch('http://localhost:8080/api/me', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      });
+
+      if (!userData.ok) {
+        setError('Invalid credentials.');
+        return;
+      }
+
+      const profile = await userData.json();
+      setCurrentUser(profile);
       setError('');
       setMessage('');
       setView('dashboard');
 
-      if (userData.role === 'ADMIN') {
-        await fetchUsers(authHeaders);
+      if (profile.role === 'ADMIN') {
+        await fetchUsers();
       }
     } catch (loginError) {
       console.error('Login failed', loginError);
@@ -223,7 +242,7 @@ function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    setCurrentUserPassword('');
+    setToken('');
     setEmail('');
     setPassword('');
     setQuestion('');
@@ -236,16 +255,6 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setAnswer('Thinking...');
-
-    const buildAuthHeaders = () => {
-      if (!currentUser || !currentUserPassword) {
-        return {};
-      }
-
-      return {
-        Authorization: `Basic ${btoa(`${currentUser.email}:${currentUserPassword}`)}`
-      };
-    };
 
     try {
       console.log('Sending question to backend', { question, url: 'http://localhost:8080/api/ask' });

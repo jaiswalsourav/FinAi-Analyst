@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: jaiswalsourav/finaianalyst-frontend:v1
+    image: finaianalyst-frontend:latest
     build: ./frontend
     ports:
       - "3000:3000"
@@ -9,19 +9,21 @@ services:
       - ai-service
 
   backend:
-    image: jaiswalsourav/finaianalyst-backend:v1
+    image: finaianalyst-backend:latest
     build: ./backend
     ports:
       - "8080:8080"
     environment:
       AI_SERVICE_URL: http://ai-service:8001
+      JWT_SECRET: your-super-long-random-secret-key-at-least-256-bits-long-change-this
+      JWT_EXPIRATION_MS: 86400000
     depends_on:
       - ai-service
 
   ai-service:
-    image: jaiswalsourav/finaianalyst-ai-service:v1
+    image: finaianalyst-ai-service:latest
     build: ./ai-service
     ports:
       - "8001:8001"
     environment:
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6JNKb1PKVFnj5V_F_a07f_rlLdZAnqB6gU9YNMGXJExeg}

@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 
+import requests
 from google import genai
 
 
@@ -17,10 +19,11 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
 api_key = os.getenv("GEMINI_API_KEY")
-
+alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
 
 print("Env:", env_path)
-print("API Key Loaded:", bool(api_key))
+print("GEMINI API Key Loaded:", bool(api_key))
+print("Alpha Vantage Key Loaded:", bool(alpha_key))
 
 
 # ==========================
@@ -45,6 +48,10 @@ app.add_middleware(
 class AskRequest(BaseModel):
     question: str
 
+
+class AskStockRequest(BaseModel):
+    symbol: str
+    question: str
 
 
 # ==========================
@@ -79,12 +86,10 @@ def health():
     return {
         "status": "ok",
         "gemini": client is not None,
-        "model": MODEL
+        "model": MODEL,
+        "alpha_vantage": bool(alpha_key)
     }
 
-
-    import requests
-    from typing import Optional
 
 # ==========================
 # Ask API
@@ -216,9 +221,4 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8001
-
-
-        class AskStockRequest(BaseModel):
-            symbol: str
-            question: str
     )

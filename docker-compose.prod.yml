@@ -23,5 +23,6 @@ services:
     ports:
       - "8001:8001"
     environment:
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6JNKb1PKVFnj5V_F_a07f_rlLdZAnqB6gU9YNMGXJExeg}
+      
     restart: unless-stopped
