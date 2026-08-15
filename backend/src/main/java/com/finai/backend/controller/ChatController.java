@@ -19,16 +19,37 @@ public class ChatController {
     @Value("${AI_SERVICE_URL:http://localhost:8001}")
     private String aiServiceUrl;
 
+    @Value("${ALPHA_VANTAGE_KEY:}")
+    private String alphaVantageKey;
+
     @PostMapping("/ask")
     public Map<String, String> ask(@RequestBody Map<String, String> payload, Authentication authentication) {
         String question = payload.getOrDefault("question", "");
+        String symbol = payload.getOrDefault("symbol", "");
         System.out.println("Received /api/ask request with question: " + question);
         String username = authentication != null ? authentication.getName() : "anonymous";
         logger.info("Received /api/ask request from user={}, question={}", username, question);
 
         RestTemplate restTemplate = new RestTemplate();
         try {
-            Map<String, String> response = restTemplate.postForObject(aiServiceUrl + "/ask", Map.of("question", question), Map.class);
+            Object requestBody;
+            if (symbol != null && !symbol.isEmpty() && alphaVantageKey != null && !alphaVantageKey.isEmpty()) {
+                // fetch Alpha Vantage data and include as context
+                String base = "https://www.alphavantage.co/query";
+                Map gq = restTemplate.getForObject(base + "?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}", Map.class, symbol, alphaVantageKey);
+                Map ts = restTemplate.getForObject(base + "?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&outputsize=compact&apikey={key}", Map.class, symbol, alphaVantageKey);
+
+                Map<String, Object> context = Map.of(
+                        "global_quote", gq != null ? gq.get("Global Quote") : Map.of(),
+                        "time_series", ts != null ? ts.get("Time Series (Daily)") : Map.of()
+                );
+
+                requestBody = Map.of("question", question, "context", context);
+            } else {
+                requestBody = Map.of("question", question);
+            }
+
+            Map<String, String> response = restTemplate.postForObject(aiServiceUrl + "/ask", requestBody, Map.class);
             logger.info("AI service response for user={}: {}", username, response); 
             System.out.println("AI service response for user=" + username + ": " + response);
             String answer = response != null ? String.valueOf(response.getOrDefault("answer", "No response")) : "No response";

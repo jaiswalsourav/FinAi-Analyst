@@ -1,30 +1,30 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-
-from fastapi import FastAPI
+ 
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
-
+ 
 import requests
-from google import genai
-
-
+import json
+from google import generativeai as genai
+ 
+ 
 # ==========================
 # Load Environment
 # ==========================
-
+ 
 env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
-
+ 
 api_key = os.getenv("GEMINI_API_KEY")
 alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
-
+ 
 print("Env:", env_path)
 print("GEMINI API Key Loaded:", bool(api_key))
 print("Alpha Vantage Key Loaded:", bool(alpha_key))
-
 
 # ==========================
 # FastAPI
@@ -47,6 +47,7 @@ app.add_middleware(
 
 class AskRequest(BaseModel):
     question: str
+    context: Optional[dict] = None
 
 
 class AskStockRequest(BaseModel):
@@ -58,16 +59,15 @@ class AskStockRequest(BaseModel):
 # Gemini Setup
 # ==========================
 
-client = None
+client: Optional[object] = None
 
 MODEL = "gemini-2.0-flash"
 
 
 if api_key:
     try:
-        client = genai.Client(
-            api_key=api_key
-        )
+        genai.configure(api_key=api_key)
+        client = genai.GenerativeModel(model_name=MODEL)
 
         print("Gemini Connected")
 
@@ -76,6 +76,24 @@ if api_key:
 
 
 
+# CHANGE #1 + #2: add one shared helper here to fetch + validate Alpha Vantage data,
+# instead of duplicating the requests.get(...) calls in both stock_info() and ask_stock() below.
+#
+def fetch_alpha_data(symbol: str):
+    base = 'https://www.alphavantage.co/query'
+    gq = requests.get(base, params={'function': 'GLOBAL_QUOTE', 'symbol': symbol, 'apikey': alpha_key}, timeout=10).json()
+    ts = requests.get(base, params={'function': 'TIME_SERIES_DAILY_ADJUSTED', 'symbol': symbol, 'outputsize': 'compact', 'apikey': alpha_key}, timeout=10).json()
+
+    # Alpha Vantage returns a "Note" or "Information" key instead of real data when rate-limited
+    for resp in (gq, ts):
+        if isinstance(resp, dict) and ('Note' in resp or 'Information' in resp):
+            raise RuntimeError(f"Alpha Vantage issue: {resp.get('Note') or resp.get('Information')}")
+
+    return {
+        'global_quote': gq.get('Global Quote', {}),
+        'time_series': ts.get('Time Series (Daily)', {})
+    }
+ 
 # ==========================
 # Health Check
 # ==========================
@@ -95,128 +113,102 @@ def health():
 # Ask API
 # ==========================
 
+ 
 @app.post("/ask")
 def ask(req: AskRequest):
-
+ 
     if client is None:
         return {
             "answer": "Gemini not initialized"
         }
-    alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
-
-
+    #alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
+    # CHANGE #4: DEAD CODE — this line re-fetches alpha_key but it's never used
+    # in this function. Delete it (alpha_key is already loaded at module level).
+ 
+ 
     try:
+ 
+        # Build prompt using optional provided context
+        if getattr(req, 'context', None):
+            prompt = req.question + "\nContext:\n" + json.dumps(req.context)
+        else:
+            prompt = req.question
 
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=req.question
-        )
+        response = client.generate_content(prompt)
 
-
-        return {
-            "answer": response.text
-        }
-
-
+        return {"answer": getattr(response, 'text', str(response))}
+ 
+ 
     except Exception as e:
-
+        # CHANGE #5: currently returns 200 OK even on failure, so the frontend
+        # can't tell "Gemini answered" from "the request failed". Consider:
+        # from fastapi import HTTPException
+        # raise HTTPException(status_code=502, detail=str(e))
         return {
             "answer": str(e)
         }
+
 
 
 @app.get('/stock-info')
 def stock_info(symbol: Optional[str] = None):
     if not symbol:
         return {"error": "symbol required"}
-
+ 
     if not alpha_key:
         return {"error": "Alpha Vantage key not configured"}
-
+ 
     try:
-        base = 'https://www.alphavantage.co/query'
-        # Global quote
-        gq = requests.get(base, params={
-            'function': 'GLOBAL_QUOTE',
-            'symbol': symbol,
-            'apikey': alpha_key
-        }, timeout=10).json()
-
-        # Time series daily (compact)
-        ts = requests.get(base, params={
-            'function': 'TIME_SERIES_DAILY_ADJUSTED',
-            'symbol': symbol,
-            'outputsize': 'compact',
-            'apikey': alpha_key
-        }, timeout=10).json()
-
-        return {
-            'global_quote': gq.get('Global Quote', {}),
-            'time_series': ts.get('Time Series (Daily)', {})
-        }
-
+        data = fetch_alpha_data(symbol)
+        return data
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=502, detail=str(e))
+
 
 
 @app.post('/ask-stock')
 def ask_stock(req: AskStockRequest):
     if client is None:
         return {"answer": "Gemini not initialized"}
-
+ 
     # Fetch recent stock data to provide context
     stock_context = {}
     if alpha_key:
         try:
-            base = 'https://www.alphavantage.co/query'
-            gq = requests.get(base, params={
-                'function': 'GLOBAL_QUOTE',
-                'symbol': req.symbol,
-                'apikey': alpha_key
-            }, timeout=10).json()
-
-            ts = requests.get(base, params={
-                'function': 'TIME_SERIES_DAILY_ADJUSTED',
-                'symbol': req.symbol,
-                'outputsize': 'compact',
-                'apikey': alpha_key
-            }, timeout=10).json()
-
-            stock_context = {
-                'global_quote': gq.get('Global Quote', {}),
-                'time_series': ts.get('Time Series (Daily)', {})
-            }
+            stock_context = fetch_alpha_data(req.symbol)
         except Exception as e:
             stock_context = {'error': f'Failed to fetch stock data: {e}'}
-
+ 
     # Build prompt
     prompt = f"You are a helpful finance assistant. The user is asking about {req.symbol}.\n"
     if stock_context:
-        prompt += f"Here is recent market data: {stock_context}\n"
-
+        prompt += f"Here is recent market data (JSON): {json.dumps(stock_context)}\n"
+        # CHANGE #3: this dumps a raw Python dict (single-quoted repr) into the prompt.
+        # Use json.dumps for a cleaner, model-friendly format:
+        # import json
+        # prompt += f"Here is recent market data (JSON): {json.dumps(stock_context)}\n"
+ 
     prompt += f"User question: {req.question}\nAnswer concisely and focus on the symbol provided."
-
+ 
     try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt
-        )
+        response = client.generate_content(prompt)
 
-        return {"answer": response.text}
-
+        return {"answer": getattr(response, 'text', str(response))}
+ 
     except Exception as e:
+        # CHANGE #5: same as /ask — return a real error status instead of 200 with error text.
         return {"answer": str(e)}
-
-
-
+ 
+ 
+ 
 # ==========================
 # Run
 # ==========================
-
+ 
 if __name__ == "__main__":
-
+ 
     import uvicorn
-
+ 
     uvicorn.run(
         app,
         host="0.0.0.0",
