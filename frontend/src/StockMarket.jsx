@@ -217,7 +217,7 @@ export default function StockMarket() {
                   <td style={{
                     textAlign: 'right',
                     padding: '12px 8px',
-                    color: stock.change >= 0 ? '#4ade80' : '#ef4444',
+                    color: stock.change >= 0 ? '#05200f' : '#ef4444',
                     fontWeight: 500
                   }}>
                     {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent}%

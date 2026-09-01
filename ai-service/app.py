@@ -118,16 +118,9 @@ def health():
 def ask(req: AskRequest):
  
     if client is None:
-        return {
-            "answer": "Gemini not initialized"
-        }
-    #alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
-    # CHANGE #4: DEAD CODE — this line re-fetches alpha_key but it's never used
-    # in this function. Delete it (alpha_key is already loaded at module level).
- 
+        raise HTTPException(status_code=503, detail="Gemini service not initialized")
  
     try:
- 
         # Build prompt using optional provided context
         if getattr(req, 'context', None):
             prompt = req.question + "\nContext:\n" + json.dumps(req.context)
@@ -138,38 +131,31 @@ def ask(req: AskRequest):
 
         return {"answer": getattr(response, 'text', str(response))}
  
- 
     except Exception as e:
-        # CHANGE #5: currently returns 200 OK even on failure, so the frontend
-        # can't tell "Gemini answered" from "the request failed". Consider:
-        # from fastapi import HTTPException
-        # raise HTTPException(status_code=502, detail=str(e))
-        return {
-            "answer": str(e)
-        }
+        raise HTTPException(status_code=502, detail=f"Gemini API error: {str(e)}")
 
 
 
 @app.get('/stock-info')
 def stock_info(symbol: Optional[str] = None):
     if not symbol:
-        return {"error": "symbol required"}
+        raise HTTPException(status_code=400, detail="Symbol parameter is required")
  
     if not alpha_key:
-        return {"error": "Alpha Vantage key not configured"}
+        raise HTTPException(status_code=503, detail="Alpha Vantage API key not configured")
  
     try:
         data = fetch_alpha_data(symbol)
         return data
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=f"External API error: {str(e)}")
 
 
 
 @app.post('/ask-stock')
 def ask_stock(req: AskStockRequest):
     if client is None:
-        return {"answer": "Gemini not initialized"}
+        raise HTTPException(status_code=503, detail="Gemini service not initialized")
  
     # Fetch recent stock data to provide context
     stock_context = {}
@@ -177,27 +163,21 @@ def ask_stock(req: AskStockRequest):
         try:
             stock_context = fetch_alpha_data(req.symbol)
         except Exception as e:
-            stock_context = {'error': f'Failed to fetch stock data: {e}'}
+            # Log the error but continue - stock data is optional context
+            stock_context = {'error': f'Failed to fetch stock data: {str(e)}'}
  
     # Build prompt
     prompt = f"You are a helpful finance assistant. The user is asking about {req.symbol}.\n"
-    if stock_context:
+    if stock_context and 'error' not in stock_context:
         prompt += f"Here is recent market data (JSON): {json.dumps(stock_context)}\n"
-        # CHANGE #3: this dumps a raw Python dict (single-quoted repr) into the prompt.
-        # Use json.dumps for a cleaner, model-friendly format:
-        # import json
-        # prompt += f"Here is recent market data (JSON): {json.dumps(stock_context)}\n"
  
     prompt += f"User question: {req.question}\nAnswer concisely and focus on the symbol provided."
  
     try:
         response = client.generate_content(prompt)
-
         return {"answer": getattr(response, 'text', str(response))}
- 
     except Exception as e:
-        # CHANGE #5: same as /ask — return a real error status instead of 200 with error text.
-        return {"answer": str(e)}
+        raise HTTPException(status_code=502, detail=f"Gemini API error: {str(e)}")
  
  
  
