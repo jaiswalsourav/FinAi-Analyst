@@ -21,10 +21,12 @@ load_dotenv(env_path)
  
 api_key = os.getenv("GEMINI_API_KEY")
 alpha_key = os.getenv("ALPHA_VANTAGE_KEY")
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
  
 print("Env:", env_path)
 print("GEMINI API Key Loaded:", bool(api_key))
 print("Alpha Vantage Key Loaded:", bool(alpha_key))
+print("CORS Origins:", cors_origins)
 
 # ==========================
 # FastAPI
@@ -35,9 +37,9 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_origins,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
