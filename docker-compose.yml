@@ -11,12 +11,18 @@ services:
   backend:
     image: finaianalyst-backend:latest
     build: ./backend
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     ports:
       - "8080:8080"
     environment:
       AI_SERVICE_URL: http://ai-service:8001
-      JWT_SECRET: your-super-long-random-secret-key-at-least-256-bits-long-change-this
-      JWT_EXPIRATION_MS: 86400000
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:?Set DATABASE_USERNAME in .env}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
     depends_on:
       - ai-service
 
@@ -26,4 +32,6 @@ services:
     ports:
       - "8001:8001"
     environment:
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-AQ.Ab8RN6JNKb1PKVFnj5V_F_a07f_rlLdZAnqB6gU9YNMGXJExeg}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+      ALPHA_VANTAGE_KEY: ${ALPHA_VANTAGE_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}

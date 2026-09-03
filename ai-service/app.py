@@ -91,7 +91,7 @@ class QuarterlySearchRequest(BaseModel):
 
 client: Optional[object] = None
 
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-3.6-flash"
 
 
 if api_key:
@@ -554,12 +554,14 @@ def retrieve(req: RetrieveRequest):
 @app.delete("/rag/clear")
 def clear_rag():
     """Clear all documents from the RAG vector store."""
+    # ✅ Declare global BEFORE checking or using the variable
+    global rag_manager
+
     if rag_manager is None:
         raise HTTPException(status_code=503, detail="RAG Manager not initialized")
     
     try:
         # Note: This reinitializes the vector store
-        global rag_manager
         rag_manager = get_rag_manager(api_key) if api_key else None
         return {"status": "success", "message": "RAG store cleared and reinitialized"}
     except Exception as e:
@@ -583,7 +585,7 @@ def store_stock_data(symbol: str):
     
     if not rag_manager:
         raise HTTPException(status_code=503, detail="RAG Manager not initialized")
-    
+
     try:
         data = fetch_alpha_data(symbol, store_in_rag=True)
         

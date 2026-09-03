@@ -148,3 +148,167 @@ textarea {
   padding: 10px 14px;
   cursor: pointer;
 }
+
+.panel-heading,
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-heading h3 {
+  margin: 4px 0 16px;
+}
+
+.eyebrow {
+  color: #63d7bd;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.symbol-pill {
+  border: 1px solid rgba(99, 215, 189, 0.35);
+  border-radius: 999px;
+  color: #9ff1dd;
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.quote-grid,
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.quote-card,
+.metric-card {
+  background: #132238;
+  border: 1px solid #25344a;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.quote-card-primary {
+  border-color: rgba(99, 215, 189, 0.5);
+}
+
+.quote-card span,
+.metric-card span {
+  color: #91a4bf;
+  display: block;
+  font-size: 0.76rem;
+  margin-bottom: 6px;
+}
+
+.quote-card strong,
+.metric-card strong {
+  color: #f4fbfa;
+  font-size: 1.1rem;
+}
+
+.mini-chart,
+.insight-chart {
+  border-top: 1px solid #25344a;
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.section-heading span {
+  color: #dce7f5;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.section-heading small {
+  color: #71849f;
+  font-size: 0.72rem;
+}
+
+.recent-table-wrap {
+  margin-top: 4px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.recent-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.recent-table th,
+.recent-table td {
+  border-bottom: 1px solid #202e43;
+  padding: 8px 4px;
+  text-align: left;
+}
+
+.recent-table th {
+  color: #71849f;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.recent-table td:last-child,
+.recent-table th:last-child {
+  text-align: right;
+}
+
+.analysis-result {
+  color: #dce7f5;
+}
+
+.analysis-result .metric-grid {
+  margin: 14px 0 4px;
+}
+
+.answer-copy {
+  line-height: 1.7;
+  margin-top: 16px;
+}
+
+.answer-copy p {
+  margin: 0 0 10px;
+}
+
+.empty-state {
+  color: #71849f;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .login-card,
+  .dashboard-card {
+    border-radius: 16px;
+    padding: 18px;
+  }
+
+  .dashboard-header,
+  .panel-heading {
+    align-items: flex-start;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+  }
+
+  .quote-grid,
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-card strong,
+  .metric-card strong {
+    font-size: 1rem;
+  }
+}

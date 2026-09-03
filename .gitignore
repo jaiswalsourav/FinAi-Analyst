@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 .env
 .env.example
+!.env.example
+!ai-service/.env.example

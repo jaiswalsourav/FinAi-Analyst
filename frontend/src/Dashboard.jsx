@@ -3,6 +3,7 @@ import StockMarket from "./StockMarket";
 import StockChart from "./StockChart";
 import StockDetail from "./StockDetail";
 import StockChat from "./StockChat";
+import AnalysisResult from "./AnalysisResult";
 
 /*
   Dashboard.jsx
@@ -228,10 +229,7 @@ export default function DashboardPage({
 
         <div className="result-box">
           <h3>Analysis</h3>
-
-          <p>
-            {answer || "Your insights will appear here."}
-          </p>
+          <AnalysisResult answer={answer} />
         </div>
       </div>
     </div>
