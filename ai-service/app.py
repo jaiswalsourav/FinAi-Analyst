@@ -441,6 +441,42 @@ def stock_info(symbol: Optional[str] = None):
         raise HTTPException(status_code=502, detail=f"External API error: {str(e)}")
 
 
+@app.get('/search-stocks')
+def search_stocks(query: Optional[str] = None):
+    """Search Alpha Vantage symbols and return Indian NSE/BSE matches."""
+    if not query or len(query.strip()) < 2:
+        return {"matches": [], "error": "Enter at least 2 characters"}
+
+    if not alpha_key:
+        return {"matches": [], "error": "Alpha Vantage key not configured"}
+
+    try:
+        response = requests.get('https://www.alphavantage.co/query', params={
+            'function': 'SYMBOL_SEARCH',
+            'keywords': query.strip(),
+            'apikey': alpha_key
+        }, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        matches = []
+        for item in data.get('bestMatches', []):
+            exchange = item.get('4. region', '').upper()
+            market = item.get('3. type', '').lower()
+            if exchange in {'INDIA', 'NSE', 'BSE'} and market == 'equity':
+                matches.append({
+                    'symbol': item.get('1. symbol'),
+                    'name': item.get('2. name'),
+                    'region': item.get('4. region'),
+                    'currency': item.get('8. currency'),
+                    'match_score': item.get('9. matchScore')
+                })
+
+        return {"matches": matches[:10]}
+    except Exception as e:
+        return {"matches": [], "error": str(e)}
+
+
 
 @app.post('/ask-stock')
 def ask_stock(req: AskStockRequest):

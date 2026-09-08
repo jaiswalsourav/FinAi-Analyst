@@ -40,11 +40,13 @@ public class UserController {
         this.jwtUtil = jwtUtil;
     }
 
+
+    /// registration endpoint /api/register
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
         if (request.getEmail() == null || request.getEmail().isBlank() || request.getPassword() == null
-                || request.getPassword().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email and password are required.");
+                || request.getPassword().isBlank() || request.getName() == null || request.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email, name, and password are required.");
         }
 
         if (userService.existsByEmail(request.getEmail())) {
@@ -52,7 +54,7 @@ public class UserController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists.");
         }
 
-        UserEntity created = userService.createUser(request.getEmail(), request.getPassword(), "USER");
+        UserEntity created = userService.createUser(request.getName(), request.getEmail(), request.getPassword(), "USER");
         logger.info("User registered successfully email={} role={}", created.getEmail(), created.getRole());
         return new ResponseEntity<>("User Created Successfully", HttpStatus.CREATED);
     }
@@ -109,7 +111,7 @@ public class UserController {
     @GetMapping("/users")
     public List<UserResponse> getUsers() {
         return userService.listUsers().stream()
-                .map(user -> new UserResponse(user.getId(), user.getEmail(), user.getRole()))
+                .map(user -> new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole()))
                 .collect(Collectors.toList());
     }
 
@@ -122,13 +124,16 @@ public class UserController {
         UserEntity user = userService.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
-        return new UserResponse(user.getId(), user.getEmail(), user.getRole());
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole());
     }
 
     public static class RegisterRequest {
+        private String name;
         private String email;
         private String password;
 
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
         public String getPassword() { return password; }
@@ -156,16 +161,19 @@ public class UserController {
 
     public static class UserResponse {
         private Long id;
+        private String name;
         private String email;
         private String role;
 
-        public UserResponse(Long id, String email, String role) {
+        public UserResponse(Long id, String name, String email, String role) {
             this.id = id;
+            this.name = name;
             this.email = email;
             this.role = role;
         }
 
         public Long getId() { return id; }
+        public String getName() { return name; }
         public String getEmail() { return email; }
         public String getRole() { return role; }
     }

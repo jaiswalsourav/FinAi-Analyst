@@ -21,8 +21,9 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public UserEntity createUser(String email, String password, String role) {
+    public UserEntity createUser(String name, String email, String password, String role) {
         UserEntity entity = new UserEntity();
+        entity.setName(name.trim());
         entity.setEmail(email.trim().toLowerCase());
         entity.setPassword(passwordEncoder.encode(password));
         entity.setRole(role);
