@@ -44,18 +44,23 @@ public class UserController {
     /// registration endpoint /api/register
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
+
+        System.out.println("Register request received: " + request.getEmail() + ", " + request.getName());
         if (request.getEmail() == null || request.getEmail().isBlank() || request.getPassword() == null
                 || request.getPassword().isBlank() || request.getName() == null || request.getName().isBlank()) {
+                    System.out.println("Registration failed: email, name, and password are required.");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email, name, and password are required.");
         }
 
         if (userService.existsByEmail(request.getEmail())) {
             logger.info("Registration failed: user already exists email={}", request.getEmail());
+            System.out.println("Registration failed: user already exists email=" + request.getEmail());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists.");
         }
-
+                
         UserEntity created = userService.createUser(request.getName(), request.getEmail(), request.getPassword(), "USER");
         logger.info("User registered successfully email={} role={}", created.getEmail(), created.getRole());
+        System.out.println("User registered successfully email=" + created.getName() + ", role=" + created.getRole());
         return new ResponseEntity<>("User Created Successfully", HttpStatus.CREATED);
     }
 
@@ -63,6 +68,7 @@ public class UserController {
     public AuthResponse login(@RequestBody LoginRequest request) {
         if (request.getEmail() == null || request.getEmail().isBlank() || request.getPassword() == null
                 || request.getPassword().isBlank()) {
+                    System.out.println("Login failed: email and password are required.");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email and password are required.");
         }
 
@@ -71,22 +77,26 @@ public class UserController {
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             logger.warn("Invalid login attempt for email={}", request.getEmail());
+            System.out.println("Invalid login attempt for email=" + request.getEmail());
             throw new BadCredentialsException("Invalid email or password");
         }
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
         logger.info("Login successful for email={}", user.getEmail());
+        System.out.println("Login successful for email=" + user.getEmail());
         return new AuthResponse(token);
     }
 
     @PostMapping("/forgot-password")
     public PasswordResetResponse forgotPassword(@RequestBody ForgotPasswordRequest request) {
         if (request.getEmail() == null || request.getEmail().isBlank()) {
+            System.out.println("Forgot password request failed: email is required.");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required.");
         }
 
         try {
             String token = userService.createPasswordResetToken(request.getEmail());
+            System.out.println("Password reset token created for email=" + request.getEmail());
             return new PasswordResetResponse(request.getEmail(), token, "Password reset token created. Use this token to reset your password.");
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -102,6 +112,7 @@ public class UserController {
 
         try {
             userService.resetPassword(request.getToken(), request.getPassword());
+            System.out.println("Password reset successfully for email=" + request.getEmail());
             return new PasswordResetResponse(null, null, "Password reset successfully.");
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());

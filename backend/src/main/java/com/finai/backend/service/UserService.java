@@ -31,14 +31,17 @@ public class UserService {
     }
 
     public Optional<UserEntity> findByEmail(String email) {
+        System.out.println("Finding user by email: " + email);
         return userRepository.findByEmail(email.trim().toLowerCase());
     }
 
     public boolean existsByEmail(String email) {
+        System.out.println("Checking if user exists by email: " + email);
         return findByEmail(email).isPresent();
     }
 
     public String createPasswordResetToken(String email) {
+        System.out.println("Creating password reset token for email: " + email);    
         UserEntity user = findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found."));
 
@@ -51,6 +54,7 @@ public class UserService {
     }
 
     public Optional<UserEntity> findByResetToken(String token) {
+        System.out.println("Finding user by reset token: " + token);
         return userRepository.findByPasswordResetToken(token);
     }
 
@@ -69,6 +73,7 @@ public class UserService {
     }
 
     public List<UserEntity> listUsers() {
+        System.out.println("Listing all users.");
         return userRepository.findAll();
     }
 }

@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/health", "/actuator/health", "/api/ask",
                                   "/api/register", "/api/login",
                                   "/api/forgot-password", "/api/reset-password").permitAll()
-                .requestMatchers("/api/users").hasRole("ADMIN")
+                .requestMatchers("/api/users").hasRole("ADMIN").authenticated()
                 .requestMatchers("/api/me").authenticated()
                 .anyRequest().authenticated()
             )
