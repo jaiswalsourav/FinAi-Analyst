@@ -7,3 +7,8 @@ __pycache__/
 .env.example
 !.env.example
 !ai-service/.env.example
+all_logs.txt
+backend_error_logs.txt
+backend_logs.txt
+backend.log
+backend1.log

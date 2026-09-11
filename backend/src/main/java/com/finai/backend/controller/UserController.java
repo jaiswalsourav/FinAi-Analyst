@@ -112,7 +112,7 @@ public class UserController {
 
         try {
             userService.resetPassword(request.getToken(), request.getPassword());
-            System.out.println("Password reset successfully for email=" + request.getEmail());
+            System.out.println("Password reset successfully for email=");
             return new PasswordResetResponse(null, null, "Password reset successfully.");
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
