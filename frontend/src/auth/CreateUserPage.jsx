@@ -8,9 +8,17 @@ export default function CreateUserPage(
         <form onSubmit={onCreateUser}>
           <div className="form-field"><label htmlFor="newUserName">Name of the User</label>
           <input id="newUserName" type="text" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} placeholder="John Doe" /></div>
-          <div className="form-field"><label htmlFor="newUserEmail">New user email</label><input id="newUserEmail" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="user@company.com" /></div>
-          <div className="form-field"><label htmlFor="newUserPassword">Password</label><input id="newUserPassword" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="Create password" /></div>
-          <div className="form-field"><label htmlFor="confirmPassword">Confirm Password</label><input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter password" /></div>
+          <div className="form-field"><label htmlFor="newUserEmail">New user email</label>
+          <input id="newUserEmail" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} 
+          placeholder="user@company.com" /></div>
+          <div className="form-field">
+            <label htmlFor="newUserPassword">Password</label>
+            <input id="newUserPassword" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} 
+            placeholder="Create password" /></div>
+          <div className="form-field">
+               <label htmlFor="confirmPassword">Confirm Password</label>
+               <input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter password" />
+          </div>
           <button type="submit" className="primary-btn" style={{ width: '100%' }}>Create User</button>
         </form>
         {message ? <p className="helper-text">{message}</p> : null}

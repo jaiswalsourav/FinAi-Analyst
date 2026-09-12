@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@CrossOrigin(origins = "*")
+//@CrossOrigin(origins = "*")
 @RequestMapping("/api")
 public class UserController {
 
@@ -40,7 +40,10 @@ public class UserController {
         this.jwtUtil = jwtUtil;
     }
 
-
+    @GetMapping("/error")
+    public ResponseEntity<String> handleError() {
+        return new ResponseEntity<>("An error occurred.", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
     /// registration endpoint /api/register
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
@@ -52,6 +55,7 @@ public class UserController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email, name, and password are required.");
         }
 
+          // Check if the user already exists
         if (userService.existsByEmail(request.getEmail())) {
             logger.info("Registration failed: user already exists email={}", request.getEmail());
             System.out.println("Registration failed: user already exists email=" + request.getEmail());

@@ -69,23 +69,38 @@ export function useAppController() {
     event.preventDefault();
     const userName = auth.newUserName.trim();
     const email = auth.newUserEmail.trim().toLowerCase();
-    const password = auth.newUserPassword.trim();
 
-    if (!userName || !email || !password || !auth.confirmPassword) {
+    const password = auth.newUserPassword.trim();
+    const confirmPassword = auth.confirmPassword.trim();
+
+    if (!userName || !email || !password || !confirmPassword) {
       setError('Please provide all required fields for the new user.');
       return;
     }
-    if (password !== auth.confirmPassword) {
+    if (password !== confirmPassword) {
+      console.log('Passwords do not match:');
       setError('Passwords do not match.');
       return;
     }
 
     try {
+
       const { response, data } = await registerUser(userName, email, password);
-      if (!response.ok) {
-        setError(data.message || 'Failed to create user.');
-        return;
-      }
+      console.log('Create user response:',  response?.status);
+      console.log('Create user data:', data);
+
+         if (!response.ok) {
+      // Safely extract backend validation or exception messages
+      const serverMessage =
+        data?.message ||
+        data?.error ||
+        (typeof data === 'string' && data.length > 0 ? data : null) ||
+        `Failed to create user (HTTP ${response.status})`;
+        console.log(response.status, serverMessage);
+
+      setError(serverMessage);
+      return;
+    }
       setAuthValue('newUserName', '');
       setAuthValue('newUserEmail', '');
       setAuthValue('newUserPassword', '');
