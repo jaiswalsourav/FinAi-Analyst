@@ -22,11 +22,50 @@ export default function DashboardPage({
   const [search, setSearch] = useState('');
   const [symbol, setSymbol] = useState('NASDAQ:AAPL');
 
-  const handleSearch = (event) => {
-    event.preventDefault();
-    const key = search.trim().toUpperCase();
-    if (key) setSymbol(companyMap[key] || key);
-  };
+  const handleSearch = async (event) => {
+  event.preventDefault();
+  const query = search.trim();
+  if (!query) return;
+
+  // 1. Check local companyMap first for fast resolution
+  const key = query.toUpperCase();
+  if (companyMap && companyMap[key]) {
+    setSymbol(companyMap[key]);
+    return;
+  }
+
+  // 2. Fetch live matching NSE stock from backend
+  try {
+    const token = localStorage.getItem('token');
+
+    const resp = await fetch(
+      `http://localhost:8080/search/stocksname?stockName=${encodeURIComponent(query)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && data.length > 0) {
+        // Top matching result (e.g., "NSE:TCS")
+        setSymbol(data[0].exchangeSymbol);
+        return;
+      }
+    } else if (resp.status === 401 || resp.status === 403) {
+      console.error('Unauthorized: Invalid or expired JWT token');
+    }
+  } catch (err) {
+    console.error('Failed to search stock:', err);
+  }
+
+  // 3. Fallback: format directly as an NSE ticker if no backend match found
+  setSymbol(key.startsWith('NSE:') ? key : `NSE:${key}`);
+};
 
   return (
     <div className="dashboard-card">

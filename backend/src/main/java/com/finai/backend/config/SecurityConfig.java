@@ -46,6 +46,7 @@ public class SecurityConfig {
                     "/api/reset-password",
                     "/api/health"
                 ).permitAll()
+                .requestMatchers("search/**").authenticated()
                 // NOTE: must stay ABOVE the /api/users ADMIN rule below —
                 // authorizeHttpRequests matches in order, first match wins.
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()

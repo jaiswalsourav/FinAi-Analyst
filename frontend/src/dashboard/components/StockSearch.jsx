@@ -6,7 +6,7 @@ export default function StockSearch({ value, onChange, onSearch }) {
         <input
           type="text"
           value={value}
-          placeholder="Apple, Microsoft, Reliance, TCS..."
+          placeholder="Reliance, Tata Motors, SBIN, TCS..."
           onChange={(event) => onChange(event.target.value)}
         />
         <button type="submit" className="primary-btn">Search</button>
