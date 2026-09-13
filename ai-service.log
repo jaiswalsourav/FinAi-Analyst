@@ -1,0 +1,13 @@
+ai-service-1  | /app/app/api/agent_api.py:7: FutureWarning: 
+ai-service-1  | 
+ai-service-1  | All support for the `google.generativeai` package has ended. It will no longer be receiving 
+ai-service-1  | updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+ai-service-1  | See README for more details:
+ai-service-1  | 
+ai-service-1  | https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+ai-service-1  | 
+ai-service-1  |   import google.generativeai as genai
+ai-service-1  | INFO:     Started server process [1]
+ai-service-1  | INFO:     Waiting for application startup.
+ai-service-1  | INFO:     Application startup complete.
+ai-service-1  | INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)

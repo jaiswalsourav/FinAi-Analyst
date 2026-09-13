@@ -10,7 +10,8 @@ public class UserEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(nullable = false)
+
+    @Column(name = "name")
     private String name;
 
     @Column(nullable = false, unique = true)
@@ -37,11 +38,9 @@ public class UserEntity {
         this.role = role;
     }
 
-     
     public Long getId() {
         return id;
     }
-    
 
     public String getName() {
         return name;
