@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
+
 public class ChatController {
 //http://localhost:8080/api/ask
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
