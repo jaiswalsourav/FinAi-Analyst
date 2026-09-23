@@ -23,4 +23,4 @@ def clear_all_caches() -> None:
     """Utility to flush all in-memory caches simultaneously."""
     quote_cache.clear()
     fundamentals_cache.clear()
-    technicals_cache.clear()
+    technicals_cache.clear() 

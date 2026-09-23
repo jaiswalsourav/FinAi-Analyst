@@ -14,8 +14,10 @@ export function useStockChat(symbol) {
 
     try {
       const data = await askAboutStock(symbol, trimmedQuestion);
+      console.log("AI Service Response:", data);
       setMessages((current) => [...current, { from: 'bot', text: data.answer || 'No response' }]);
     } catch {
+      console.log("Error: Failed to reach AI service.");
       setMessages((current) => [...current, { from: 'bot', text: 'Failed to reach AI service.' }]);
     } finally {
       setLoading(false);
