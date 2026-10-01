@@ -16,6 +16,11 @@ export async function searchStocks(query, token) {
   return parseResponse(response);
 }
 
+export async function fetchStockNews(symbol) {
+  const response = await fetch(`${AI_SERVICE_URL}/stock-news?symbol=${encodeURIComponent(symbol)}`);
+  return parseResponse(response);
+}
+
 export async function fetchStockInfo(symbol) {
   const response = await fetch(`${AI_SERVICE_URL}/stock-info?symbol=${encodeURIComponent(symbol)}`);
   return parseResponse(response);

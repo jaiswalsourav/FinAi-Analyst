@@ -162,9 +162,9 @@ export function extractKeyFigures(blocks, limit = 6) {
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 // Sortable time key from a label like "Jun 2026", "Q2 FY26", "2025"; null when not time-like
-function timeKey(label) {
+export function timeKey(label) {
   const text = stripMarkdown(label).toLowerCase();
-  const year = text.match(/(20\d\d)/) || text.match(/fy\s?'?(\d\d)/);
+  const year = text.match(/\b(20\d\d)\b/) || text.match(/fy\s?'?(\d\d)\b/);
   if (!year) return null;
   const yearNumber = year[1].length === 2 ? 2000 + Number(year[1]) : Number(year[1]);
   const month = MONTHS.findIndex((name) => text.includes(name));

@@ -3,6 +3,9 @@ app/service/market_data.py
 Market data retrieval service utilizing Alpha Vantage with yfinance fallback.
 """
 
+import re
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict
 import requests
 import yfinance as yf
@@ -146,5 +149,131 @@ def fetch_stock_info(symbol: str) -> Dict[str, Any]:
             "10. change percent": f"{percent:.2f}%",
         },
         "time_series": time_series,
+        "source": "yfinance",
+    }
+
+
+_COMPANY_SUFFIX = re.compile(r"\s+(limited|ltd\.?|inc\.?|corporation|corp\.?|plc|co\.?)$", re.IGNORECASE)
+
+
+def _company_name(yf_symbol: str) -> str:
+    """Best-effort company name for a ticker, used as the news search term."""
+    try:
+        info = yf.Ticker(yf_symbol).info or {}
+        name = info.get("longName") or info.get("shortName")
+        if name:
+            return _COMPANY_SUFFIX.sub("", name).strip()
+    except Exception:
+        pass
+    return yf_symbol.split(".")[0]
+
+
+def fetch_news(symbol: str, limit: int = 8) -> Dict[str, Any]:
+    """Recent headlines about a company from Google News (RSS), newest first."""
+    yf_symbol = _to_yf_symbol(symbol)
+    company = _company_name(yf_symbol)
+    response = requests.get(
+        "https://news.google.com/rss/search",
+        params={"q": f"{company} stock", "hl": "en-IN", "gl": "IN", "ceid": "IN:en"},
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=10,
+    )
+    response.raise_for_status()
+
+    articles = []
+    for item in ET.fromstring(response.content).findall(".//item"):
+        url = (item.findtext("link") or "").strip()
+        if not url.startswith(("http://", "https://")):
+            continue
+        source_node = item.find("source")
+        source = (source_node.text or "").strip() if source_node is not None else ""
+        title = (item.findtext("title") or "").strip()
+        if source and title.endswith(f" - {source}"):
+            title = title[: -len(source) - 3].strip()  # Google appends " - Publisher"
+        try:
+            published = parsedate_to_datetime(item.findtext("pubDate") or "").isoformat()
+        except Exception:
+            published = None
+        articles.append({"title": title, "source": source, "published": published, "url": url})
+
+    articles.sort(key=lambda article: article["published"] or "", reverse=True)
+    return {"symbol": symbol, "company": company, "articles": articles[:limit]}
+
+
+INDEX_SYMBOLS = {
+    "NIFTY": "^NSEI", "NIFTY50": "^NSEI", "NIFTY 50": "^NSEI",
+    "SENSEX": "^BSESN", "BSE SENSEX": "^BSESN",
+    "BANKNIFTY": "^NSEBANK", "NIFTY BANK": "^NSEBANK",
+    "NIFTYIT": "^CNXIT", "NIFTY IT": "^CNXIT",
+    "NASDAQ": "^IXIC", "S&P 500": "^GSPC", "SP500": "^GSPC", "DOW": "^DJI",
+}
+
+# Approximate Nifty 50 membership (index changes twice a year); missing tickers are skipped
+NIFTY50 = [
+    "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT", "AXISBANK", "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV",
+    "BEL", "BHARTIARTL", "CIPLA", "COALINDIA", "DRREDDY", "EICHERMOT", "ETERNAL", "GRASIM", "HCLTECH", "HDFCBANK",
+    "HDFCLIFE", "HINDALCO", "HINDUNILVR", "ICICIBANK", "INDUSINDBK", "INFY", "ITC", "JIOFIN", "JSWSTEEL",
+    "KOTAKBANK", "LT", "M&M", "MARUTI", "NESTLEIND", "NTPC", "ONGC", "POWERGRID", "RELIANCE", "SBILIFE", "SBIN",
+    "SHRIRAMFIN", "SUNPHARMA", "TATACONSUM", "TATASTEEL", "TCS", "TECHM", "TITAN", "TRENT", "ULTRACEMCO", "WIPRO",
+]
+
+
+def fetch_index(name: str) -> Dict[str, Any]:
+    """Level, day change, ranges and recent closes for a market index (Nifty 50, Sensex, Nasdaq...)."""
+    key = name.strip().upper()
+    symbol = INDEX_SYMBOLS.get(key) or (key if key.startswith("^") else None)
+    if not symbol:
+        return {"error": f"Unknown index '{name}'. Known: {', '.join(sorted(INDEX_SYMBOLS))}"}
+
+    history = yf.Ticker(symbol).history(period="1y", interval="1d")
+    closes = history["Close"].dropna() if history is not None and not history.empty else None
+    if closes is None or len(closes) < 2:
+        return {"error": f"No data for index {name}"}
+
+    last, prev = float(closes.iloc[-1]), float(closes.iloc[-2])
+    month_ago = float(closes.iloc[-22]) if len(closes) > 22 else float(closes.iloc[0])
+    return {
+        "index": name,
+        "symbol": symbol,
+        "level": round(last, 2),
+        "day_change": round(last - prev, 2),
+        "day_change_percent": round((last / prev - 1) * 100, 2),
+        "one_month_change_percent": round((last / month_ago - 1) * 100, 2),
+        "week52_high": round(float(closes.max()), 2),
+        "week52_low": round(float(closes.min()), 2),
+        "recent_closes": {day.strftime("%Y-%m-%d"): round(float(value), 2) for day, value in closes.tail(10).items()},
+        "source": "yfinance",
+    }
+
+
+def fetch_nifty50_movers(top: int = 5) -> Dict[str, Any]:
+    """Day change of every Nifty 50 stock in one batch, with the top gainers and losers."""
+    tickers = [f"{symbol}.NS" for symbol in NIFTY50]
+    data = yf.download(tickers, period="5d", group_by="ticker", progress=False, auto_adjust=False, threads=True)
+
+    rows = []
+    for ticker in tickers:
+        try:
+            closes = data[ticker]["Close"].dropna()
+            rows.append({
+                "symbol": ticker.replace(".NS", ""),
+                "price": round(float(closes.iloc[-1]), 2),
+                "change_percent": round((float(closes.iloc[-1]) / float(closes.iloc[-2]) - 1) * 100, 2),
+            })
+        except Exception:
+            continue  # delisted / no data
+
+    if not rows:
+        return {"error": "No Nifty 50 constituent data available right now"}
+    rows.sort(key=lambda row: row["change_percent"], reverse=True)
+    advancing = sum(1 for row in rows if row["change_percent"] > 0)
+    return {
+        "stocks_covered": len(rows),
+        "advancing": advancing,
+        "declining": len(rows) - advancing,
+        "top_gainers": rows[:top],
+        "top_losers": rows[-top:][::-1],
+        "all_stocks": rows,
+        "note": "Constituent list is approximate; day change is last close vs previous close.",
         "source": "yfinance",
     }

@@ -1,27 +1,33 @@
-export default function FinancialQuestionForm({ question, setQuestion, symbol, setSymbol, onSubmit }) {
+export default function FinancialQuestionForm({ question, setQuestion, symbol, setSymbol, onSubmit, busy }) {
+  // Enter sends, Shift+Enter adds a new line
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      if (question.trim() && !busy) onSubmit(event);
+    }
+  };
+
   return (
-    <form onSubmit={onSubmit} className="result-box">
-      <div className="form-field">
-        <label>Selected stock</label>
-        {symbol ? (
-          <div className="selected-stock">
-            <span className="symbol-pill">{symbol}</span>
-            <button type="button" className="text-btn" onClick={() => setSymbol('')}>Clear</button>
-          </div>
-        ) : (
-          <small className="helper-text" style={{ margin: 0 }}>None - ask a general question, or search a company above.</small>
-        )}
-      </div>
-      <div className="form-field">
-        <label>Financial Question</label>
+    <form onSubmit={onSubmit} className="composer">
+      {symbol && (
+        <div className="selected-stock">
+          <span className="helper-text" style={{ margin: 0 }}>Asking about</span>
+          <span className="symbol-pill">{symbol}</span>
+          <button type="button" className="text-btn" onClick={() => setSymbol('')}>Clear</button>
+        </div>
+      )}
+      <div className="composer-row">
         <textarea
-          rows="4"
+          rows="2"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder={symbol ? `Example: Is ${symbol} a good long-term buy?` : 'Example: Compare TCS and Infosys'}
+          onKeyDown={handleKeyDown}
+          placeholder={symbol ? `Ask about ${symbol}, e.g. Is it a good long-term buy?` : 'Ask a financial question, e.g. Compare TCS and Infosys'}
         />
+        <button type="submit" className="primary-btn" disabled={busy || !question.trim()}>
+          {busy ? 'Analysing...' : 'Analyze'}
+        </button>
       </div>
-      <button type="submit" className="primary-btn">Analyze</button>
     </form>
   );
 }

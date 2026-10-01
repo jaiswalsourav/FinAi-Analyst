@@ -63,10 +63,11 @@ def ask_agent(req: AgentAskRequest):
                     enable_automatic_function_calling=True
                 )
             chat = session_store[key]
+            history_start = len(chat.history)
             response = chat.send_message(full_prompt)
 
             tools_executed = []
-            for content in chat.history[-2:]:
+            for content in chat.history[history_start:]:
                 for part in content.parts:
                     fn_call = getattr(part, "function_call", None)
                     if fn_call:

@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
+import { parseAnswer } from '../analysis/followUps';
 
 // API helpers for the backend and the AI-service fallback
 import { askAiQuestion, askFinancialQuestion } from '../services/apiClient';
@@ -12,7 +13,7 @@ import {
 } from '../services/authService';
 // Reducer actions from authSlice.js and dashboardSlice.js
 import { clearSession, setAuthField } from '../store/authSlice';
-import { resetDashboard, setDashboardField } from '../store/dashboardSlice';
+import { addMessages, clearMessages, resetDashboard, setDashboardField, updateMessage } from '../store/dashboardSlice';
 
 export function useAppController() {
   const dispatch = useDispatch();
@@ -178,24 +179,60 @@ export function useAppController() {
     dispatch(resetDashboard());
   };
 
-  const handleAnalysis = async (event) => {
-    event.preventDefault();
-    setDashboardValue('answer', 'Thinking...');
+  const isBusy = dashboard.messages.some((message) => message.role === 'ai' && message.text === 'Thinking...');
+
+  // Ask the backend (AI service as fallback) and fill the answer into an existing AI message
+  const runQuestion = async (question, symbol, answerId) => {
+    const setAnswer = (fields) => dispatch(updateMessage({ id: answerId, ...fields }));
     try {
-      const data = await askFinancialQuestion(dashboard.question, dashboard.symbol, auth.token);
+      const data = await askFinancialQuestion(question, symbol, auth.token);
       if (!data.answer) throw new Error('No response from backend');
-      setDashboardValue('answer', data.answer);
+      const { text, followUps } = parseAnswer(data.answer);
+      setAnswer({ text, followUps, error: false });
     } catch (error) {
       console.warn('Backend request failed, trying AI service fallback.', error);
       try {
-        const data = await askAiQuestion(dashboard.question);
-        setDashboardValue('answer', data.answer || 'No response');
+        const data = await askAiQuestion(question);
+        const { text, followUps } = parseAnswer(data.answer || 'No response');
+        setAnswer({ text, followUps, error: false });
       } catch (aiError) {
         console.error('AI service request failed', aiError);
-        setDashboardValue('answer', 'Unable to reach the backend or AI service right now.');
+        setAnswer({ text: 'Unable to reach the backend or AI service right now.', followUps: [], error: true });
       }
     }
   };
+
+  // Chat flow: the question becomes a message, the answer fills in below it
+  const handleAsk = (rawQuestion, symbol = '') => {
+    const question = String(rawQuestion || '').trim();
+    if (!question || isBusy) return;
+
+    const stamp = Date.now();
+    const answerId = `ai-${stamp}`;
+    dispatch(addMessages([
+      { id: `user-${stamp}`, role: 'user', text: question, symbol },
+      { id: answerId, role: 'ai', text: 'Thinking...', prompt: question, symbol, followUps: [], error: false },
+    ]));
+    runQuestion(question, symbol, answerId);
+  };
+
+  // Composer submit: send the typed question and clear the box
+  const handleAnalysis = (event) => {
+    event.preventDefault();
+    if (!dashboard.question.trim() || isBusy) return;
+    handleAsk(dashboard.question, dashboard.symbol);
+    setDashboardValue('question', '');
+  };
+
+  // Re-run the question behind an answer (used for Regenerate and Retry)
+  const handleRegenerate = (answerId) => {
+    const message = dashboard.messages.find((item) => item.id === answerId);
+    if (!message?.prompt || isBusy) return;
+    dispatch(updateMessage({ id: answerId, text: 'Thinking...', followUps: [], error: false }));
+    runQuestion(message.prompt, message.symbol || '', answerId);
+  };
+
+  const handleClearChat = () => dispatch(clearMessages());
 
   const openView = (view) => {
     setError('');
@@ -213,6 +250,9 @@ export function useAppController() {
       handleResetPassword,
       handleLogout,
       handleAnalysis,
+      handleAsk,
+      handleRegenerate,
+      handleClearChat,
       openView,
       setAuthValue,
       setDashboardValue,

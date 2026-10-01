@@ -55,9 +55,13 @@ export default function AppView({ auth, dashboard, actions }) {
       setQuestion={setDashboard('question')}
       symbol={dashboard.symbol}
       setSymbol={setDashboard('symbol')}
-      answer={dashboard.answer}
+      messages={dashboard.messages}
       token={auth.token}
       onSubmit={actions.handleAnalysis}
+      onClear={actions.handleClearChat}
+      onAsk={actions.handleAsk}
+      onRegenerate={actions.handleRegenerate}
+      onEdit={(text, symbol) => { setDashboard('question')(text); setDashboard('symbol')(symbol || ''); }}
       onBack={() => actions.openView('dashboard')} />;
   }
 

@@ -1,6 +1,7 @@
 import StockChart from '../../stock/StockChart';
 import StockChat from '../../stock/StockChat';
 import StockDetail from '../../stock/StockDetail';
+import StockNews from '../../stock/StockNews';
 
 export default function StockWorkspace({ symbol, companyName }) {
   return (
@@ -14,6 +15,7 @@ export default function StockWorkspace({ symbol, companyName }) {
           <span className="symbol-pill">{symbol}</span>
         </div>
         <StockChart symbol={symbol} />
+        <StockNews symbol={symbol} />
       </div>
       <div className="stock-sidebar">
         <StockDetail symbol={symbol} />

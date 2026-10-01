@@ -15,6 +15,9 @@ fundamentals_cache: TTLCache = TTLCache(maxsize=100, ttl=86400)
 # Technical indicators cache (10-minute TTL, max 250 symbols)
 technicals_cache: TTLCache = TTLCache(maxsize=250, ttl=600)
 
+# Company news headlines (10-minute TTL, max 200 symbols)
+news_cache: TTLCache = TTLCache(maxsize=200, ttl=600)
+
 # Multi-turn Gemini ChatSession objects keyed by session_id
 session_store: Dict[str, Any] = {}
 

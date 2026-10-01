@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api import agent_api, rag_api
-from app.service.market_data import fetch_stock_info
+from app.core.cache import news_cache
+from app.service.market_data import fetch_news, fetch_stock_info
 
 app = FastAPI(
     title="Financial AI Service",
@@ -51,6 +52,18 @@ def stock_info(symbol: str):
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Market data error: {exc}")
+
+
+@app.get("/stock-news")
+def stock_news(symbol: str):
+    """Recent headlines for a company, cached for a few minutes."""
+    key = symbol.strip().upper()
+    if key not in news_cache:
+        try:
+            news_cache[key] = fetch_news(symbol)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"News unavailable: {exc}")
+    return news_cache[key]
 
 
 if __name__ == "__main__":
