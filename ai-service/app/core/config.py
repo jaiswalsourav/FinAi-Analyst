@@ -12,7 +12,7 @@ class Settings:
     CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     
     # Model and Storage Settings
-    MODEL_NAME: str = "gemini-2.5-flash"
+    MODEL_NAME: str = "gemini-flash-latest"
     EMBEDDING_MODEL: str = "models/text-embedding-004"
     CHROMA_PERSIST_DIR: str = str(ROOT_DIR / "chroma_db")
 

@@ -3,11 +3,12 @@ app/main.py
 FastAPI application entrypoint assembling CORS, routers, and health checks.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api import agent_api, rag_api
+from app.service.market_data import fetch_stock_info
 
 app = FastAPI(
     title="Financial AI Service",
@@ -39,6 +40,17 @@ def health_check():
         "gemini_configured": bool(settings.GEMINI_API_KEY),
         "alpha_vantage_configured": bool(settings.ALPHA_VANTAGE_KEY)
     }
+
+
+@app.get("/stock-info")
+def stock_info(symbol: str):
+    """Quote and recent daily closes for the stock detail panel."""
+    try:
+        return fetch_stock_info(symbol)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Market data error: {exc}")
 
 
 if __name__ == "__main__":

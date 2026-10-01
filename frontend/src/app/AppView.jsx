@@ -6,8 +6,9 @@ import DashboardPage from '../dashboard/DashboardPage';
 import ProfilePage from '../profile/ProfilePage';
 
 export default function AppView({ auth, dashboard, actions }) {
+  //helper functions to set auth and dashboard values in the store
   const setAuth = (field) => (value) => actions.setAuthValue(field, value);
-  const setDashboard = (field) => (value) => actions.setDashboardValue(field, value);
+  const setDashboard = (field) => (value) => actions.setDashboardValue(field, value); 
   const clearMessages = () => {
     actions.setAuthValue('error', '');
     actions.setAuthValue('message', '');
@@ -38,7 +39,15 @@ export default function AppView({ auth, dashboard, actions }) {
   }
 
   if (auth.view === 'dashboard' && auth.currentUser) {
-    return <DashboardPage users={auth.users} currentUser={auth.currentUser} question={dashboard.question} setQuestion={setDashboard('question')} answer={dashboard.answer} onLogout={actions.handleLogout} onSubmit={actions.handleAnalysis} onOpenProfile={() => actions.openView('profile')} />;
+    return <DashboardPage 
+    users={auth.users} 
+    currentUser={auth.currentUser} 
+    question={dashboard.question} 
+    setQuestion={setDashboard('question')} 
+    answer={dashboard.answer} 
+    onLogout={actions.handleLogout} 
+    onSubmit={actions.handleAnalysis} 
+    onOpenProfile={() => actions.openView('profile')} />;
   }
 
   if (auth.view === 'profile' && auth.currentUser) {

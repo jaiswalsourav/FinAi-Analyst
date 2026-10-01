@@ -87,3 +87,42 @@ def fetch_quarterly_earnings(symbol: str) -> Dict[str, Any]:
         return {
             "error": f"Failed to retrieve quarterly earnings for {ticker_clean}: {str(exc)}"
         }
+
+def _to_yf_symbol(symbol: str) -> str:
+    """Convert 'EXCHANGE:TICKER' (e.g. NSE:TCS, NASDAQ:AAPL) into a yfinance ticker."""
+    raw = symbol.strip().upper()
+    if ":" not in raw:
+        return raw
+    exchange, ticker = raw.split(":", 1)
+    suffix = {"NSE": ".NS", "BSE": ".BO"}.get(exchange, "")
+    return f"{ticker}{suffix}"
+
+
+def fetch_stock_info(symbol: str) -> Dict[str, Any]:
+    """Quote and recent daily closes, shaped like Alpha Vantage's GLOBAL_QUOTE / TIME_SERIES_DAILY."""
+    yf_symbol = _to_yf_symbol(symbol)
+    history = yf.Ticker(yf_symbol).history(period="1mo", interval="1d")
+    if history is None or history.empty:
+        raise ValueError(f"No market data found for {symbol}")
+
+    closes = history["Close"].dropna()
+    last = float(closes.iloc[-1])
+    prev = float(closes.iloc[-2]) if len(closes) > 1 else last
+    change = last - prev
+    percent = (change / prev * 100) if prev else 0.0
+
+    time_series = {
+        index.strftime("%Y-%m-%d"): {"4. close": f"{float(row['Close']):.4f}"}
+        for index, row in history.dropna(subset=["Close"]).sort_index(ascending=False).iterrows()
+    }
+    return {
+        "symbol": symbol,
+        "global_quote": {
+            "01. symbol": yf_symbol,
+            "05. price": f"{last:.4f}",
+            "09. change": f"{change:.4f}",
+            "10. change percent": f"{percent:.2f}%",
+        },
+        "time_series": time_series,
+        "source": "yfinance",
+    }

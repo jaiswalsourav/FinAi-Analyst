@@ -11,7 +11,7 @@ export function useStockChat(symbol) {
 
     setMessages((current) => [...current, { from: 'user', text: trimmedQuestion }]);
     setLoading(true);
-
+//Financial Question
     try {
       const data = await askAboutStock(symbol, trimmedQuestion);
       console.log("AI Service Response:", data);

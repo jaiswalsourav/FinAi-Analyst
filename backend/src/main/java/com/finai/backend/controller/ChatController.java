@@ -22,6 +22,7 @@ public class ChatController {
     @Value("${ALPHA_VANTAGE_KEY:}")
     private String alphaVantageKey;
 
+    //search Analyst question and symbol from frontend and send to backend and then backend will send to AI service and get the response and send back to frontend
     @PostMapping("/ask")
     public Map<String, String> ask(@RequestBody Map<String, String> payload, Authentication authentication) {
         String question = payload.getOrDefault("question", "");
@@ -32,24 +33,15 @@ public class ChatController {
 
         RestTemplate restTemplate = new RestTemplate();
         try {
-            Object requestBody;
-            if (symbol != null && !symbol.isEmpty() && alphaVantageKey != null && !alphaVantageKey.isEmpty()) {
-                // fetch Alpha Vantage data and include as context
-                String base = "https://www.alphavantage.co/query";
-                Map gq = restTemplate.getForObject(base + "?function=GLOBAL_QUOTE&symbol={symbol}&apikey={key}", Map.class, symbol, alphaVantageKey);
-                Map ts = restTemplate.getForObject(base + "?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&outputsize=compact&apikey={key}", Map.class, symbol, alphaVantageKey);
-
-                Map<String, Object> context = Map.of(
-                        "global_quote", gq != null ? gq.get("Global Quote") : Map.of(),
-                        "time_series", ts != null ? ts.get("Time Series (Daily)") : Map.of()
-                );
-
-                requestBody = Map.of("question", question, "context", context);
-            } else {
-                requestBody = Map.of("question", question);
+            // The AI agent fetches market data itself via its tools; it only needs prompt, session and symbol
+            Map<String, Object> requestBody = new java.util.HashMap<>();
+            requestBody.put("prompt", question);
+            requestBody.put("session_id", username);
+            if (symbol != null && !symbol.isEmpty()) {
+                requestBody.put("symbol", symbol);
             }
 
-            Map<String, String> response = restTemplate.postForObject(aiServiceUrl + "/ask", requestBody, Map.class);
+            Map<String, String> response = restTemplate.postForObject(aiServiceUrl + "/agent/ask", requestBody, Map.class);
             logger.info("AI service response for user={}: {}", username, response); 
             System.out.println("AI service response for user=" + username + ": " + response);
             String answer = response != null ? String.valueOf(response.getOrDefault("answer", "No response")) : "No response";

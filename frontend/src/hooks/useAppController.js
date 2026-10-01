@@ -1,4 +1,6 @@
 import { useDispatch, useSelector } from 'react-redux';
+
+// API helpers for the backend and the AI-service fallback
 import { askAiQuestion, askFinancialQuestion } from '../services/apiClient';
 import {
   fetchCurrentUser,
@@ -8,16 +10,21 @@ import {
   requestPasswordReset,
   resetPassword,
 } from '../services/authService';
+// Reducer actions from authSlice.js and dashboardSlice.js
 import { clearSession, setAuthField } from '../store/authSlice';
 import { resetDashboard, setDashboardField } from '../store/dashboardSlice';
 
 export function useAppController() {
   const dispatch = useDispatch();
+
+  // auth and dashboard are the state objects of their Redux slices
   const auth = useSelector((state) => state.auth);
   const dashboard = useSelector((state) => state.dashboard);
 
+  // Set a single field of a slice; `field` must be a key of that slice's initialState
   const setAuthValue = (field, value) => dispatch(setAuthField({ field, value }));
   const setDashboardValue = (field, value) => dispatch(setDashboardField({ field, value }));
+  // Shortcuts for the auth slice's error and message fields
   const setError = (value) => setAuthValue('error', value);
   const setMessage = (value) => setAuthValue('message', value);
 
@@ -175,7 +182,7 @@ export function useAppController() {
     event.preventDefault();
     setDashboardValue('answer', 'Thinking...');
     try {
-      const data = await askFinancialQuestion(dashboard.question, auth.token);
+      const data = await askFinancialQuestion(dashboard.question, '', auth.token);
       if (!data.answer) throw new Error('No response from backend');
       setDashboardValue('answer', data.answer);
     } catch (error) {
@@ -212,3 +219,23 @@ export function useAppController() {
     },
   };
 }
+
+
+/*initialState = {
+  users: [],
+  currentUser: null,
+  token: '',
+  view: 'login',
+  email: '',
+  password: '',
+  newUserName: '',
+  newUserEmail: '',
+  newUserPassword: '',
+  confirmPassword: '',
+  resetEmail: '',
+  resetToken: '',
+  resetNewPassword: '',
+  resetConfirmPassword: '',
+  error: '',
+  message: '',
+};*/

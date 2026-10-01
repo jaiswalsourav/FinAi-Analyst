@@ -9,6 +9,7 @@ import google.generativeai as genai
 from app.core.config import settings
 from app.core.cache import session_store
 from app.schemas.agent import AgentAskRequest, AgentAskResponse
+from app.service.market_data import _to_yf_symbol
 from app.tools.agent_tools import ALL_AGENT_TOOLS
 
 router = APIRouter(prefix="/agent", tags=["AI Agent"])
@@ -46,7 +47,7 @@ def ask_agent(req: AgentAskRequest):
 
         context_parts = []
         if req.symbol:
-            context_parts.append(f"[Target Symbol: {req.symbol.upper()}]")
+            context_parts.append(f"[Target Symbol: {_to_yf_symbol(req.symbol)}]")
         if req.user_portfolio:
             context_parts.append(f"[User Portfolio: {', '.join(req.user_portfolio)}]")
 
