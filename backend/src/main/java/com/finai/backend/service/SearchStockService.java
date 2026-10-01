@@ -39,7 +39,7 @@ public class SearchStockService {
         try {
             String encodedQuery = URLEncoder.encode(stockName.trim(), StandardCharsets.UTF_8);
             String webApiUrl = "https://query2.finance.yahoo.com/v1/finance/search?q="
-                    + encodedQuery + "&quotesCount=10&newsCount=0";
+                    + encodedQuery + "&quotesCount=20&newsCount=0";
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(webApiUrl))

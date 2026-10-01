@@ -182,7 +182,7 @@ export function useAppController() {
     event.preventDefault();
     setDashboardValue('answer', 'Thinking...');
     try {
-      const data = await askFinancialQuestion(dashboard.question, '', auth.token);
+      const data = await askFinancialQuestion(dashboard.question, dashboard.symbol, auth.token);
       if (!data.answer) throw new Error('No response from backend');
       setDashboardValue('answer', data.answer);
     } catch (error) {

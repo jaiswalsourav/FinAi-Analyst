@@ -4,6 +4,7 @@ const dashboardSlice = createSlice({
   name: 'dashboard',
   initialState: {
     question: '',
+    symbol: '',
     answer: '',
   },
   reducers: {
@@ -13,6 +14,7 @@ const dashboardSlice = createSlice({
     },
     resetDashboard(state) {
       state.question = '';
+      state.symbol = '';
       state.answer = '';
     },
   },

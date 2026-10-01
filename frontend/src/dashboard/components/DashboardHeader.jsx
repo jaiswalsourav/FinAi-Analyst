@@ -1,4 +1,4 @@
-export default function DashboardHeader({ currentUser, profileOpen, onToggleProfile, onLogout, onOpenProfile }) {
+export default function DashboardHeader({ currentUser, profileOpen, onToggleProfile, onLogout, onOpenProfile, onOpenAnalysis }) {
   const [firstName] = (currentUser.name || currentUser.email).split(/\s|@/);
   const initials = firstName?.[0]?.toUpperCase() || 'U';
 
@@ -13,7 +13,17 @@ export default function DashboardHeader({ currentUser, profileOpen, onToggleProf
         </p>
       </div>
 
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          type="button"
+          className="small-btn"
+          onClick={onOpenAnalysis}
+          aria-label="Open AI analysis"
+          title="AI Analysis"
+          style={{ fontWeight: 700 }}
+        >
+          ✨ AI
+        </button>
         <button
           className="small-btn"
           onClick={onToggleProfile}

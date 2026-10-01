@@ -115,8 +115,30 @@ def fetch_stock_info(symbol: str) -> Dict[str, Any]:
         index.strftime("%Y-%m-%d"): {"4. close": f"{float(row['Close']):.4f}"}
         for index, row in history.dropna(subset=["Close"]).sort_index(ascending=False).iterrows()
     }
+    details: Dict[str, Any] = {}
+    try:
+        info = yf.Ticker(yf_symbol).info or {}
+        details = {
+            "name": info.get("longName") or info.get("shortName"),
+            "currency": info.get("currency"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "market_cap": info.get("marketCap"),
+            "pe_ratio": info.get("trailingPE"),
+            "eps": info.get("trailingEps"),
+            "dividend_yield": info.get("dividendYield"),
+            "day_high": info.get("dayHigh"),
+            "day_low": info.get("dayLow"),
+            "week52_high": info.get("fiftyTwoWeekHigh"),
+            "week52_low": info.get("fiftyTwoWeekLow"),
+            "volume": info.get("regularMarketVolume") or info.get("volume"),
+        }
+    except Exception:
+        pass  # quote and chart still work without fundamentals
+
     return {
         "symbol": symbol,
+        "details": details,
         "global_quote": {
             "01. symbol": yf_symbol,
             "05. price": f"{last:.4f}",

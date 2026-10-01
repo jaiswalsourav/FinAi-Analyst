@@ -9,6 +9,13 @@ async function parseResponse(response) {
   return data;
 }
 
+export async function searchStocks(query, token) {
+  const response = await fetch(`${BACKEND_URL}/search/stocksname?stockName=${encodeURIComponent(query)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  return parseResponse(response);
+}
+
 export async function fetchStockInfo(symbol) {
   const response = await fetch(`${AI_SERVICE_URL}/stock-info?symbol=${encodeURIComponent(symbol)}`);
   return parseResponse(response);

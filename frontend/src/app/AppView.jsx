@@ -2,6 +2,7 @@ import CreateUserPage from '../auth/CreateUserPage';
 import ForgotPasswordPage from '../auth/ForgotPasswordPage';
 import LoginPage from '../auth/LoginPage';
 import ResetPasswordPage from '../auth/ResetPasswordPage';
+import AnalysisPage from '../analysis/AnalysisPage';
 import DashboardPage from '../dashboard/DashboardPage';
 import ProfilePage from '../profile/ProfilePage';
 
@@ -42,12 +43,22 @@ export default function AppView({ auth, dashboard, actions }) {
     return <DashboardPage 
     users={auth.users} 
     currentUser={auth.currentUser} 
-    question={dashboard.question} 
-    setQuestion={setDashboard('question')} 
-    answer={dashboard.answer} 
+    token={auth.token} 
     onLogout={actions.handleLogout} 
-    onSubmit={actions.handleAnalysis} 
+    onOpenAnalysis={() => actions.openView('analysis')} 
     onOpenProfile={() => actions.openView('profile')} />;
+  }
+
+  if (auth.view === 'analysis' && auth.currentUser) {
+    return <AnalysisPage
+      question={dashboard.question}
+      setQuestion={setDashboard('question')}
+      symbol={dashboard.symbol}
+      setSymbol={setDashboard('symbol')}
+      answer={dashboard.answer}
+      token={auth.token}
+      onSubmit={actions.handleAnalysis}
+      onBack={() => actions.openView('dashboard')} />;
   }
 
   if (auth.view === 'profile' && auth.currentUser) {
