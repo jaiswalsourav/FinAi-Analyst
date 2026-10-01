@@ -8,17 +8,12 @@ import google.generativeai as genai
 
 from app.core.config import settings
 from app.core.cache import session_store
+from app.core.prompts import SYSTEM_PROMPT
 from app.schemas.agent import AgentAskRequest, AgentAskResponse
 from app.service.market_data import _to_yf_symbol
 from app.tools.agent_tools import ALL_AGENT_TOOLS
 
 router = APIRouter(prefix="/agent", tags=["AI Agent"])
-
-SYSTEM_PROMPT = (
-    "You are an expert financial analyst. Use the provided tools to retrieve "
-    "real-time market data, company financials, or documents from the vector store. "
-    "Never invent numerical figures if a tool can retrieve them."
-)
 
 _models: dict = {}
 
