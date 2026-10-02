@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-export default function StockChart({ symbol }) {
+// height: pixels for the compact chart, or '100%' to fill a parent (the enlarged popup)
+export default function StockChart({ symbol, height = 320 }) {
 	const container = useRef();
 
 	useEffect(() => {
@@ -20,10 +21,10 @@ export default function StockChart({ symbol }) {
 			save_image: true,
 			withdateranges: true,
 			hide_top_toolbar: false,
-			hide_side_toolbar: false,
+			hide_side_toolbar: height === '100%' ? false : true,
 		});
 		container.current.appendChild(script);
-	}, [symbol]);
+	}, [symbol, height]);
 
-	return <div ref={container} className="tradingview-widget-container" style={{ width: '100%', height: '600px' }} />;
+	return <div ref={container} className="tradingview-widget-container" style={{ width: '100%', height }} />;
 }

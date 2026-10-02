@@ -1,4 +1,4 @@
-const BACKEND_URL = 'http://localhost:8080';
+import { BACKEND_URL } from './config';
 
 async function request(path, options = {}) {
   const response = await fetch(`${BACKEND_URL}${path}`, {

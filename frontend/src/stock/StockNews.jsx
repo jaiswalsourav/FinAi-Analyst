@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { fetchStockNews } from '../services/apiClient';
 
 function timeAgo(iso) {
@@ -15,6 +16,7 @@ export default function StockNews({ symbol }) {
   const [news, setNews] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const token = useSelector((state) => state.auth.token);
 
   useEffect(() => {
     if (!symbol) return undefined;
@@ -23,13 +25,13 @@ export default function StockNews({ symbol }) {
     setError('');
     setNews(null);
 
-    fetchStockNews(symbol)
+    fetchStockNews(symbol, token)
       .then((data) => active && setNews(data))
       .catch((requestError) => active && setError(requestError.message || 'Could not load news.'))
       .finally(() => active && setLoading(false));
 
     return () => { active = false; };
-  }, [symbol]);
+  }, [symbol, token]);
 
   if (!symbol) return null;
   const articles = news?.articles || [];

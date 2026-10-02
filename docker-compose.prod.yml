@@ -1,19 +1,23 @@
 services:
   frontend:
-    image: souravjaiswal1/finaianalyst-frontend:v1
+    image: souravjaiswal1/finaianalyst-frontend:v2
     ports:
       - "3000:3000"
+    environment:
+      VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8080}
     depends_on:
       - backend
       - ai-service
     restart: unless-stopped
 
   backend:
-    image: souravjaiswal1/finaianalyst-backend:v1
+    image: souravjaiswal1/finaianalyst-backend:v2
     ports:
       - "8080:8080"
     environment:
       AI_SERVICE_URL: http://ai-service:8001
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       DATABASE_USERNAME: ${DATABASE_USERNAME:?Set DATABASE_USERNAME in .env}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
@@ -24,11 +28,12 @@ services:
     restart: unless-stopped
 
   ai-service:
-    image: souravjaiswal1/finaianalyst-ai-service:v1
+    image: souravjaiswal1/finaianalyst-ai-service:v2
     ports:
       - "8001:8001"
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Set INTERNAL_API_KEY in .env}
       ALPHA_VANTAGE_KEY: ${ALPHA_VANTAGE_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       

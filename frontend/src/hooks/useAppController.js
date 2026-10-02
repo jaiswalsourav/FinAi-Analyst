@@ -2,7 +2,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { parseAnswer } from '../analysis/followUps';
 
 // API helpers for the backend and the AI-service fallback
-import { askAiQuestion, askFinancialQuestion } from '../services/apiClient';
+import { askFinancialQuestion } from '../services/apiClient';
 import {
   fetchCurrentUser,
   fetchUsers,
@@ -190,15 +190,8 @@ export function useAppController() {
       const { text, followUps } = parseAnswer(data.answer);
       setAnswer({ text, followUps, error: false });
     } catch (error) {
-      console.warn('Backend request failed, trying AI service fallback.', error);
-      try {
-        const data = await askAiQuestion(question);
-        const { text, followUps } = parseAnswer(data.answer || 'No response');
-        setAnswer({ text, followUps, error: false });
-      } catch (aiError) {
-        console.error('AI service request failed', aiError);
-        setAnswer({ text: 'Unable to reach the backend or AI service right now.', followUps: [], error: true });
-      }
+      console.error('AI request failed', error);
+      setAnswer({ text: error.message || 'Unable to reach the AI service right now.', followUps: [], error: true });
     }
   };
 

@@ -3,12 +3,13 @@ app/main.py
 FastAPI application entrypoint assembling CORS, routers, and health checks.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api import agent_api, rag_api
 from app.core.cache import news_cache
+from app.core.security import require_internal_key
 from app.service.market_data import fetch_news, fetch_stock_info
 
 app = FastAPI(
@@ -27,8 +28,10 @@ app.add_middleware(
 )
 
 # Register API routers
-app.include_router(agent_api.router)
-app.include_router(rag_api.router)
+# Everything except /health requires the internal key
+secured = [Depends(require_internal_key)]
+app.include_router(agent_api.router, dependencies=secured)
+app.include_router(rag_api.router, dependencies=secured)
 
 
 @app.get("/health")
@@ -43,7 +46,7 @@ def health_check():
     }
 
 
-@app.get("/stock-info")
+@app.get("/stock-info", dependencies=secured)
 def stock_info(symbol: str):
     """Quote and recent daily closes for the stock detail panel."""
     try:
@@ -54,7 +57,7 @@ def stock_info(symbol: str):
         raise HTTPException(status_code=502, detail=f"Market data error: {exc}")
 
 
-@app.get("/stock-news")
+@app.get("/stock-news", dependencies=secured)
 def stock_news(symbol: str):
     """Recent headlines for a company, cached for a few minutes."""
     key = symbol.strip().upper()

@@ -1221,3 +1221,68 @@ a.news-item:focus-visible {
   margin-left: auto;
   color: #63d7bd;
 }
+
+/* Compact charts with an enlarge popup */
+.heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heading-actions .small-btn,
+.viz-enlarge {
+  font-size: 0.78rem;
+  padding: 5px 11px;
+}
+
+.viz-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(3, 8, 16, 0.78);
+  backdrop-filter: blur(4px);
+  animation: rise 0.2s ease both;
+}
+
+/* Portrait: taller than wide */
+.chart-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(94vw, 760px);
+  height: min(94vh, 1000px);
+  background: #0a1424;
+  border: 1px solid #2c405c;
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+.chart-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #1f2e45;
+}
+
+.chart-modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+}
+
+.chart-modal-body .viz-expanded {
+  border: none;
+  background: transparent;
+}

@@ -1,64 +1,49 @@
-const AI_SERVICE_URL = 'http://localhost:8001';
-const BACKEND_URL = 'http://localhost:8080';
+// Everything goes through the backend, which checks the login token and talks to the AI service
+// on the browser's behalf (the AI service itself requires a secret key and is never called directly).
+import { BACKEND_URL } from './config';
 
 async function parseResponse(response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || data.message || `Request failed with ${response.status}`);
+    throw new Error(data.error || data.message || data.detail || `Request failed with ${response.status}`);
   }
   return data;
 }
 
+const authHeaders = (token) => (token ? { Authorization: `Bearer ${token}` } : {});
+
 export async function searchStocks(query, token) {
   const response = await fetch(`${BACKEND_URL}/search/stocksname?stockName=${encodeURIComponent(query)}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: authHeaders(token),
   });
   return parseResponse(response);
 }
 
-export async function fetchStockNews(symbol) {
-  const response = await fetch(`${AI_SERVICE_URL}/stock-news?symbol=${encodeURIComponent(symbol)}`);
-  return parseResponse(response);
-}
-
-export async function fetchStockInfo(symbol) {
-  const response = await fetch(`${AI_SERVICE_URL}/stock-info?symbol=${encodeURIComponent(symbol)}`);
-  return parseResponse(response);
-}
-
-
-
-export async function askAboutStock(symbol, question) {
-  const response = await fetch(`${AI_SERVICE_URL}/agent/ask`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: question, symbol, session_id: `stock-${symbol}` }),
+export async function fetchStockNews(symbol, token) {
+  const response = await fetch(`${BACKEND_URL}/api/stock-news?symbol=${encodeURIComponent(symbol)}`, {
+    headers: authHeaders(token),
   });
   return parseResponse(response);
 }
 
-export async function askAiQuestion(question) {
-  const response = await fetch(`${AI_SERVICE_URL}/agent/ask`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: question }),
+export async function fetchStockInfo(symbol, token) {
+  const response = await fetch(`${BACKEND_URL}/api/stock-info?symbol=${encodeURIComponent(symbol)}`, {
+    headers: authHeaders(token),
   });
   return parseResponse(response);
 }
 
+// Question about the stock open on the dashboard; each stock keeps its own conversation
+export async function askAboutStock(symbol, question, token) {
+  return askFinancialQuestion(question, symbol, token, `stock-${symbol}`);
+}
 
-
-//financial question api that is called by handlerAnalysis
-
-export async function askFinancialQuestion(question, symbol, token) {
+// Financial question from the AI Analysis page (chat name is optional)
+export async function askFinancialQuestion(question, symbol, token, session = '') {
   const response = await fetch(`${BACKEND_URL}/api/ask`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ question, symbol }),
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ question, symbol, session }),
   });
-  
   return parseResponse(response);
 }

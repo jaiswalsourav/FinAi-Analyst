@@ -1,6 +1,7 @@
 package com.finai.backend.config;
 
 import com.finai.backend.security.JwtAuthFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,8 +24,13 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    private final List<String> allowedOrigins;
+
+    // CORS_ORIGINS: comma-separated browser origins (patterns allowed), e.g. https://app.example.com
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+                          @Value("${CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*}") String corsOrigins) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.allowedOrigins = List.of(corsOrigins.split(",")).stream().map(String::trim).filter(origin -> !origin.isEmpty()).toList();
     }
 
     @Bean
@@ -64,7 +70,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        config.setAllowedOriginPatterns(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         config.setAllowCredentials(true);

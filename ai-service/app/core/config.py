@@ -9,6 +9,8 @@ load_dotenv(ROOT_DIR / ".env")
 class Settings:
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     ALPHA_VANTAGE_KEY: str = os.getenv("ALPHA_VANTAGE_KEY", "")
+    # Shared secret the backend sends in X-Internal-Key; requests without it are rejected
+    INTERNAL_API_KEY: str = os.getenv("INTERNAL_API_KEY", "")
     CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
     
     # Model and Storage Settings

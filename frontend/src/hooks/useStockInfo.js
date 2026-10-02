@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { fetchStockInfo } from '../services/apiClient';
 
 export function useStockInfo(symbol) {
   const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const token = useSelector((state) => state.auth.token);
 
   useEffect(() => {
     if (!symbol) return undefined;
@@ -14,7 +16,7 @@ export function useStockInfo(symbol) {
     setError('');
     setInfo(null);
 
-    fetchStockInfo(symbol)
+    fetchStockInfo(symbol, token)
       .then((data) => {
         if (active) setInfo(data);
       })
@@ -28,7 +30,7 @@ export function useStockInfo(symbol) {
     return () => {
       active = false;
     };
-  }, [symbol]);
+  }, [symbol, token]);
 
   return { info, loading, error };
 }

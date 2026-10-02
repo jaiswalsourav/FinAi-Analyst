@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import ChartModal from '../components/ChartModal';
 import { parseNumber, stripMarkdown, timeKey } from './markdown';
 
 const compact = (value) => {
@@ -42,7 +43,8 @@ function ChartTooltip({ active, payload, unit, showDelta }) {
   );
 }
 
-export default function ReportChart({ table, columns }) {
+export default function ReportChart({ table, columns, expanded = false }) {
+  const [open, setOpen] = useState(false);
   const [active, setActive] = useState(columns[0].index);
   const [mode, setMode] = useState(null); // null = auto (line for time series, bars otherwise)
   const [hover, setHover] = useState(null);
@@ -58,6 +60,9 @@ export default function ReportChart({ table, columns }) {
   }), [points, timed]);
 
   if (data.length < 2) return null;
+
+  // Compact in the chat; the enlarged popup is tall (portrait)
+  const chartHeight = expanded ? Math.max(380, Math.round(window.innerHeight * 0.6)) : 180;
 
   const unit = (column.name.match(/\(([^)]+)\)/) || [])[1] || '';
   const maxIndex = data.reduce((best, point, index) => (point.value > data[best].value ? index : best), 0);
@@ -80,7 +85,7 @@ export default function ReportChart({ table, columns }) {
   };
 
   return (
-    <div className="report-chart viz">
+    <div className={`report-chart viz${expanded ? ' viz-expanded' : ''}`}>
       <div className="viz-head">
         <div>
           <div className="viz-title">{column.name}</div>
@@ -92,6 +97,9 @@ export default function ReportChart({ table, columns }) {
               <button key={type} type="button" className={chartMode === type ? 'on' : ''} onClick={() => setMode(type)}>{type === 'bars' ? 'Bars' : 'Line'}</button>
             ))}
           </div>
+          {!expanded && (
+            <button type="button" className="small-btn viz-enlarge" onClick={() => setOpen(true)} aria-label="Enlarge chart">⤢ Enlarge</button>
+          )}
         </div>
       </div>
 
@@ -112,15 +120,15 @@ export default function ReportChart({ table, columns }) {
         </div>
       )}
 
-      <ResponsiveContainer width="100%" height={250}>
+      <ResponsiveContainer width="100%" height={chartHeight}>
         {chartMode === 'line' ? (
           <ComposedChart data={data} margin={{ top: 26, right: 20, left: 0, bottom: 0 }}>
             {grid}
             <XAxis dataKey="name" {...axis} padding={{ left: 16, right: 16 }} />
             <YAxis {...axis} axisLine={false} width={52} tickFormatter={compact} domain={hasNegative ? ['auto', 'auto'] : [(min) => Math.max(0, min * 0.9), 'auto']} />
             {tooltip}
-            <Area type="monotone" dataKey="value" stroke="none" fill="var(--viz-series)" fillOpacity={0.1} isAnimationActive animationDuration={500} />
-            <Line type="monotone" dataKey="value" stroke="var(--viz-series)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dot={renderEndDot} activeDot={{ r: 5, fill: 'var(--viz-series)', stroke: 'var(--viz-surface)', strokeWidth: 2 }} isAnimationActive animationDuration={500} />
+            <Area type="monotone" dataKey="value" stroke="none" fill="var(--viz-series)" fillOpacity={0.1} isAnimationActive={false} />
+            <Line type="monotone" dataKey="value" stroke="var(--viz-series)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dot={renderEndDot} activeDot={{ r: 5, fill: 'var(--viz-series)', stroke: 'var(--viz-surface)', strokeWidth: 2 }} isAnimationActive={false} />
           </ComposedChart>
         ) : (
           <BarChart data={data} margin={{ top: 26, right: 12, left: 0, bottom: 0 }} barCategoryGap="22%" onMouseLeave={() => setHover(null)}>
@@ -128,7 +136,7 @@ export default function ReportChart({ table, columns }) {
             <XAxis dataKey="name" {...axis} interval={0} tickFormatter={(label) => (label.length > 12 ? `${label.slice(0, 11)}…` : label)} />
             <YAxis {...axis} axisLine={false} width={52} tickFormatter={compact} />
             {tooltip}
-            <Bar dataKey="value" maxBarSize={24} radius={[4, 4, 0, 0]} onMouseEnter={(_, index) => setHover(index)} isAnimationActive animationDuration={500}>
+            <Bar dataKey="value" maxBarSize={24} radius={[4, 4, 0, 0]} onMouseEnter={(_, index) => setHover(index)} isAnimationActive={false}>
               {data.map((point) => (
                 <Cell
                   key={point.name}
@@ -145,6 +153,12 @@ export default function ReportChart({ table, columns }) {
           </BarChart>
         )}
       </ResponsiveContainer>
+
+      {open && (
+        <ChartModal title={column.name} onClose={() => setOpen(false)}>
+          <ReportChart table={table} columns={columns} expanded />
+        </ChartModal>
+      )}
     </div>
   );
 }
