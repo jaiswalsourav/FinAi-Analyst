@@ -1,7 +1,10 @@
 package com.finai.backend.controller;
 
 import com.finai.backend.entity.UserEntity;
+import com.finai.backend.security.EncryptedExchange;
+import com.finai.backend.security.EncryptedPayload;
 import com.finai.backend.security.JwtUtil;
+import com.finai.backend.security.TimestampedRequest;
 import com.finai.backend.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,12 +35,15 @@ public class UserController {
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EncryptedExchange exchange;
 
     @Autowired
-    public UserController(UserService userService, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public UserController(UserService userService, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
+                          EncryptedExchange exchange) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.exchange = exchange;
     }
 
     @GetMapping("/error")
@@ -69,7 +75,9 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody LoginRequest request) {
+    public EncryptedPayload login(@RequestBody EncryptedPayload encryptedRequest) {
+        EncryptedExchange.Call<LoginRequest> call = exchange.open(encryptedRequest, LoginRequest.class);
+        LoginRequest request = call.request();
         if (request.getEmail() == null || request.getEmail().isBlank() || request.getPassword() == null
                 || request.getPassword().isBlank()) {
                     System.out.println("Login failed: email and password are required.");
@@ -88,39 +96,8 @@ public class UserController {
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
         logger.info("Login successful for email={}", user.getEmail());
         System.out.println("Login successful for email=" + user.getEmail());
-        return new AuthResponse(token);
-    }
-
-    @PostMapping("/forgot-password")
-    public PasswordResetResponse forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        if (request.getEmail() == null || request.getEmail().isBlank()) {
-            System.out.println("Forgot password request failed: email is required.");
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required.");
-        }
-
-        try {
-            String token = userService.createPasswordResetToken(request.getEmail());
-            System.out.println("Password reset token created for email=" + request.getEmail());
-            return new PasswordResetResponse(request.getEmail(), token, "Password reset token created. Use this token to reset your password.");
-        } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
-        }
-    }
-
-    @PostMapping("/reset-password")
-    public PasswordResetResponse resetPassword(@RequestBody ResetPasswordRequest request) {
-        if (request.getToken() == null || request.getToken().isBlank() || request.getPassword() == null
-                || request.getPassword().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token and new password are required.");
-        }
-
-        try {
-            userService.resetPassword(request.getToken(), request.getPassword());
-            System.out.println("Password reset successfully for email=");
-            return new PasswordResetResponse(null, null, "Password reset successfully.");
-        } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
-        }
+        // The JWT is encrypted too, so it never crosses the network in readable form.
+        return exchange.reply(new AuthResponse(token), call);
     }
 
     @GetMapping("/users")
@@ -155,7 +132,7 @@ public class UserController {
         public void setPassword(String password) { this.password = password; }
     }
 
-    public static class LoginRequest {
+    public static class LoginRequest extends TimestampedRequest {
         private String email;
         private String password;
 
@@ -191,38 +168,5 @@ public class UserController {
         public String getName() { return name; }
         public String getEmail() { return email; }
         public String getRole() { return role; }
-    }
-
-    public static class ForgotPasswordRequest {
-        private String email;
-
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-    }
-
-    public static class ResetPasswordRequest {
-        private String token;
-        private String password;
-
-        public String getToken() { return token; }
-        public void setToken(String token) { this.token = token; }
-        public String getPassword() { return password; }
-        public void setPassword(String password) { this.password = password; }
-    }
-
-    public static class PasswordResetResponse {
-        private String email;
-        private String token;
-        private String message;
-
-        public PasswordResetResponse(String email, String token, String message) {
-            this.email = email;
-            this.token = token;
-            this.message = message;
-        }
-
-        public String getEmail() { return email; }
-        public String getToken() { return token; }
-        public String getMessage() { return message; }
     }
 }

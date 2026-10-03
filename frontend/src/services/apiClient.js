@@ -19,6 +19,18 @@ export async function searchStocks(query, token) {
   return parseResponse(response);
 }
 
+export async function fetchStockHistory(symbol, range, token) {
+  const response = await fetch(`${BACKEND_URL}/api/stock-history?symbol=${encodeURIComponent(symbol)}&range=${range}`, {
+    headers: authHeaders(token),
+  });
+  return parseResponse(response);
+}
+
+export async function fetchMarketOverview(token) {
+  const response = await fetch(`${BACKEND_URL}/api/market-overview`, { headers: authHeaders(token) });
+  return parseResponse(response);
+}
+
 export async function fetchStockNews(symbol, token) {
   const response = await fetch(`${BACKEND_URL}/api/stock-news?symbol=${encodeURIComponent(symbol)}`, {
     headers: authHeaders(token),

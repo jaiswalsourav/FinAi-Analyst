@@ -62,7 +62,7 @@ export default function ReportChart({ table, columns, expanded = false }) {
   if (data.length < 2) return null;
 
   // Compact in the chat; the enlarged popup is tall (portrait)
-  const chartHeight = expanded ? Math.max(380, Math.round(window.innerHeight * 0.6)) : 180;
+  const chartHeight = expanded ? Math.max(380, Math.round(window.innerHeight * 0.6)) : 240;
 
   const unit = (column.name.match(/\(([^)]+)\)/) || [])[1] || '';
   const maxIndex = data.reduce((best, point, index) => (point.value > data[best].value ? index : best), 0);

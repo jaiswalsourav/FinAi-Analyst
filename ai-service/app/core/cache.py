@@ -15,6 +15,12 @@ fundamentals_cache: TTLCache = TTLCache(maxsize=100, ttl=86400)
 # Technical indicators cache (10-minute TTL, max 250 symbols)
 technicals_cache: TTLCache = TTLCache(maxsize=250, ttl=600)
 
+# Dashboard market overview (2-minute TTL, a single entry)
+market_cache: TTLCache = TTLCache(maxsize=1, ttl=120)
+
+# Price history for the chart (2-minute TTL, per symbol and range)
+history_cache: TTLCache = TTLCache(maxsize=300, ttl=120)
+
 # Company news headlines (10-minute TTL, max 200 symbols)
 news_cache: TTLCache = TTLCache(maxsize=200, ttl=600)
 

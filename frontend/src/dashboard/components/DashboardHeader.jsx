@@ -1,4 +1,4 @@
-export default function DashboardHeader({ currentUser, profileOpen, onToggleProfile, onLogout, onOpenProfile, onOpenAnalysis }) {
+export default function DashboardHeader({ currentUser, profileOpen, onToggleProfile, onLogout, onOpenProfile, onOpenAnalysis, search }) {
   const [firstName] = (currentUser.name || currentUser.email).split(/\s|@/);
   const initials = firstName?.[0]?.toUpperCase() || 'U';
 
@@ -12,6 +12,8 @@ export default function DashboardHeader({ currentUser, profileOpen, onToggleProf
             : 'Ask questions and get AI-assisted financial insights.'}
         </p>
       </div>
+
+      {search && <div className="header-search">{search}</div>}
 
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
         <button

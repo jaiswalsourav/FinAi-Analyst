@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import DashboardHeader from './components/DashboardHeader';
+import MarketOverview from './components/MarketOverview';
 import StockSearch from './components/StockSearch';
 import StockWorkspace from './components/StockWorkspace';
 import UserManagement from './components/UserManagement';
@@ -16,7 +17,7 @@ export default function DashboardPage({
   const [profileOpen, setProfileOpen] = useState(false);
   const [showUserList, setShowUserList] = useState(false);
   const [companyName, setCompanyName] = useState('');
-  const [symbol, setSymbol] = useState('NASDAQ:AAPL');
+  const [symbol, setSymbol] = useState('');
 
   // Used when live search finds nothing: try a local name, else treat the text as an NSE ticker
   const handleFallback = (text) => {
@@ -37,6 +38,15 @@ export default function DashboardPage({
         }}
         onLogout={onLogout}
         onOpenAnalysis={onOpenAnalysis}
+        search={(
+          <StockSearch
+            compact
+            token={token}
+            activeSymbol={symbol}
+            onSelect={(selected, name) => { setSymbol(selected); setCompanyName(name || ''); }}
+            onFallback={handleFallback}
+          />
+        )}
       />
 
       {currentUser.role === 'admin' && (
@@ -50,13 +60,16 @@ export default function DashboardPage({
         </button>
       )}
 
-      <StockSearch
-        token={token}
-        activeSymbol={symbol}
-        onSelect={(selected, name) => { setSymbol(selected); setCompanyName(name || ''); }}
-        onFallback={handleFallback}
-      />
-      <StockWorkspace symbol={symbol} companyName={companyName} />
+      {symbol ? (
+        <>
+          <div className="back-row">
+            <button type="button" className="small-btn" onClick={() => { setSymbol(''); setCompanyName(''); }}>← Market overview</button>
+          </div>
+          <StockWorkspace symbol={symbol} companyName={companyName} />
+        </>
+      ) : (
+        <MarketOverview token={token} onSelectStock={(selected, name) => { setSymbol(selected); setCompanyName(name || ''); }} />
+      )}
 
       <div className="dashboard-grid">
         <UserManagement users={users} visible={currentUser.role === 'admin' && showUserList} />

@@ -8,9 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api import agent_api, rag_api
-from app.core.cache import news_cache
+from app.core.cache import history_cache, market_cache, news_cache
 from app.core.security import require_internal_key
-from app.service.market_data import fetch_news, fetch_stock_info
+from app.service.market_data import fetch_history, fetch_market_overview, fetch_news, fetch_stock_info
 
 app = FastAPI(
     title="Financial AI Service",
@@ -55,6 +55,31 @@ def stock_info(symbol: str):
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Market data error: {exc}")
+
+
+@app.get("/market-overview", dependencies=secured)
+def market_overview():
+    """Index levels (with day low/high by market-cap segment) and Nifty 50 movers; cached for 2 minutes."""
+    if "overview" not in market_cache:
+        try:
+            market_cache["overview"] = fetch_market_overview()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Market data unavailable: {exc}")
+    return market_cache["overview"]
+
+
+@app.get("/stock-history", dependencies=secured)
+def stock_history(symbol: str, range: str = "6mo"):
+    """OHLC bars for the price chart; cached for 2 minutes per symbol and range."""
+    key = f"{symbol.strip().upper()}|{range}"
+    if key not in history_cache:
+        try:
+            history_cache[key] = fetch_history(symbol, range)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Price history unavailable: {exc}")
+    return history_cache[key]
 
 
 @app.get("/stock-news", dependencies=secured)

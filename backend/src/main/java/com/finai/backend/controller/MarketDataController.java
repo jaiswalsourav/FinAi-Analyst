@@ -24,6 +24,7 @@ public class MarketDataController {
 
     private static final Logger logger = LoggerFactory.getLogger(MarketDataController.class);
     // e.g. NSE:TCS, NASDAQ:AAPL, INFY.NS, M&M, ^NSEI
+    private static final Pattern RANGE = Pattern.compile("^(1d|5d|1mo|6mo|1y|5y)$");
     private static final Pattern SYMBOL = Pattern.compile("^[A-Za-z0-9:.&^\\-]{1,30}$");
 
     private final AiServiceClient aiServiceClient;
@@ -42,12 +43,31 @@ public class MarketDataController {
         return proxy("/stock-news", symbol);
     }
 
+    @GetMapping("/stock-history")
+    public ResponseEntity<?> stockHistory(@RequestParam("symbol") String symbol,
+                                          @RequestParam(value = "range", defaultValue = "6mo") String range) {
+        if (!SYMBOL.matcher(symbol).matches() || !RANGE.matcher(range).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid symbol or range"));
+        }
+        return forward("/stock-history", Map.of("symbol", symbol, "range", range));
+    }
+
+    @GetMapping("/market-overview")
+    public ResponseEntity<?> marketOverview() {
+        return forward("/market-overview", Map.of());
+    }
+
     private ResponseEntity<?> proxy(String path, String symbol) {
         if (!SYMBOL.matcher(symbol).matches()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid symbol"));
         }
+        return forward(path, Map.of("symbol", symbol));
+    }
+
+    private ResponseEntity<?> forward(String path, Map<String, String> query) {
+        String symbol = query.getOrDefault("symbol", "-");
         try {
-            return ResponseEntity.ok(aiServiceClient.get(path, Map.of("symbol", symbol)));
+            return ResponseEntity.ok(aiServiceClient.get(path, query));
         } catch (HttpStatusCodeException ex) {
             // Pass the AI service's own status and {"detail": ...} message through
             logger.warn("AI service {} returned {} for symbol={}", path, ex.getStatusCode(), symbol);

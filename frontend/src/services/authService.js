@@ -1,4 +1,5 @@
 import { BACKEND_URL } from './config';
+import { decryptResponse, encryptRequest } from './hybridCrypto';
 
 async function request(path, options = {}) {
   const response = await fetch(`${BACKEND_URL}${path}`, {
@@ -9,11 +10,27 @@ async function request(path, options = {}) {
   return { response, data };
 }
 
+// POSTs `body` using hybrid encryption (see hybridCrypto.js). Returns the same
+// { response, data } shape as request(), where `data` is the already-decrypted reply on success.
+async function encryptedPost(path, body) {
+  // Fetch the server's RSA public key (not secret, so no auth needed).
+  const keyResult = await request('/api/public-key');
+  if (!keyResult.response.ok) return keyResult;
+
+  // The timestamp lets the server reject replayed requests.
+  const { payload, aesKey } = await encryptRequest(
+    { ...body, timestamp: Date.now() },
+    keyResult.data.publicKey,
+  );
+
+  const result = await request(path, { method: 'POST', body: JSON.stringify(payload) });
+  if (!result.response.ok) return result; // errors are plain JSON, nothing to decrypt
+
+  return { response: result.response, data: await decryptResponse(result.data, aesKey) };
+}
+
 export function login(email, password) {
-  return request('/api/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
+  return encryptedPost('/api/login', { email, password });
 }
 
 export function fetchCurrentUser(token) {
@@ -32,15 +49,9 @@ export function registerUser(name, email, password) {
 }
 
 export function requestPasswordReset(email) {
-  return request('/api/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify({ email }),
-  });
+  return encryptedPost('/api/forgot-password', { email });
 }
 
 export function resetPassword(token, password) {
-  return request('/api/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ token, password }),
-  });
+  return encryptedPost('/api/reset-password', { token, password });
 }

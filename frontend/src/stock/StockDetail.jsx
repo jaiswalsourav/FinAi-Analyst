@@ -1,4 +1,5 @@
 import { useStockInfo } from '../hooks/useStockInfo';
+import RangeBar from './RangeBar';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const isIndian = (symbol) => /^(NSE|BSE):/i.test(symbol || '');
@@ -45,8 +46,6 @@ export default function StockDetail({ symbol }) {
 		['P/E ratio', formatNumber(details.pe_ratio)],
 		['EPS', Number.isFinite(details.eps) ? `${currency}${formatNumber(details.eps)}` : 'N/A'],
 		['Dividend yield', Number.isFinite(details.dividend_yield) ? `${formatNumber(details.dividend_yield)}%` : 'N/A'],
-		['Day range', Number.isFinite(details.day_low) ? `${currency}${formatNumber(details.day_low)} – ${currency}${formatNumber(details.day_high)}` : 'N/A'],
-		['52-week range', Number.isFinite(details.week52_low) ? `${currency}${formatNumber(details.week52_low)} – ${currency}${formatNumber(details.week52_high)}` : 'N/A'],
 		['Volume', formatNumber(details.volume, 0)],
 	];
 
@@ -61,6 +60,8 @@ export default function StockDetail({ symbol }) {
 					<div className="quote-card"><span>Change</span><strong className={trend}>{change}</strong></div>
 					<div className="quote-card"><span>Today</span><strong className={trend}>{percent}</strong></div>
 				</div>
+				<RangeBar label="Day range" low={details.day_low} high={details.day_high} value={Number(quote['05. price'])} format={(value) => `${currency}${formatNumber(value)}`} />
+				<RangeBar label="52-week range" low={details.week52_low} high={details.week52_high} value={Number(quote['05. price'])} format={(value) => `${currency}${formatNumber(value)}`} />
 				<div className="stat-list">{stats.map(([label, value]) => <div className="stat-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
 				{closeData.length > 1 && <div className="mini-chart"><div className="section-heading"><span>Recent close trend</span><small>Last {closeData.length} sessions</small></div><ResponsiveContainer width="100%" height={190}><LineChart data={closeData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}><CartesianGrid stroke="#25344a" strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" stroke="#91a4bf" tick={{ fontSize: 10 }} /><YAxis stroke="#91a4bf" tick={{ fontSize: 10 }} domain={['dataMin', 'dataMax']} /><Tooltip contentStyle={{ background: '#132238', border: '1px solid #2c405c', borderRadius: 8 }} formatter={(value) => [`${currency}${Number(value).toFixed(2)}`, 'Close']} /><Line type="monotone" dataKey="close" stroke="#63d7bd" strokeWidth={2.5} dot={false} /></LineChart></ResponsiveContainer></div>}
 				{closeData.length > 0 && <div className="recent-table-wrap"><table className="recent-table"><thead><tr><th>Date</th><th>Close</th></tr></thead><tbody>{closeData.slice(-5).reverse().map((point) => <tr key={point.date}><td>{point.date}</td><td>{currency}{point.close.toFixed(2)}</td></tr>)}</tbody></table></div>}

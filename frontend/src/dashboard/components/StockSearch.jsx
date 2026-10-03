@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { searchStocks } from '../../services/apiClient';
 import { popularIndianStocks } from '../config/companyMap';
 
-export default function StockSearch({ token, activeSymbol, onSelect, onFallback, eyebrow = 'Indian markets', title = 'Search any NSE company' }) {
+export default function StockSearch({ token, activeSymbol, onSelect, onFallback, eyebrow = 'Indian markets', title = 'Search any NSE company', compact = false }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -87,6 +87,63 @@ export default function StockSearch({ token, activeSymbol, onSelect, onFallback,
   };
 
   const showDropdown = open && query.trim().length >= 2;
+
+  // Small pill for the dashboard header: no heading, no chips; popular stocks show in the dropdown
+  if (compact) {
+    const typing = query.trim().length >= 2;
+    return (
+      <div className="search-compact" ref={wrapper}>
+        <form onSubmit={handleSubmit} role="search">
+          <span className="search-icon" aria-hidden="true">⌕</span>
+          <input
+            type="text"
+            value={query}
+            placeholder="Search NSE company or ticker"
+            aria-label="Search company"
+            onChange={(event) => { setQuery(event.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            autoComplete="off"
+          />
+        </form>
+
+        {open && (
+          <ul className="search-dropdown" role="listbox">
+            {!typing && <li className="search-status">Popular</li>}
+            {!typing && popularIndianStocks.map((stock) => (
+              <li
+                key={stock.symbol}
+                role="option"
+                aria-selected={activeSymbol === stock.symbol}
+                className="search-option"
+                onMouseDown={(event) => { event.preventDefault(); choose(stock.symbol, stock.label); }}
+              >
+                <span className="search-option-name">{stock.label}</span>
+                <span className="symbol-pill">{stock.symbol}</span>
+              </li>
+            ))}
+            {typing && loading && <li className="search-status">Searching...</li>}
+            {typing && !loading && notFound && (
+              <li className="search-status">No NSE company found. Press Enter to try "{query.trim()}" as a ticker.</li>
+            )}
+            {typing && results.map((item, index) => (
+              <li
+                key={item.exchangeSymbol}
+                role="option"
+                aria-selected={index === highlight}
+                className={`search-option${index === highlight ? ' active' : ''}`}
+                onMouseEnter={() => setHighlight(index)}
+                onMouseDown={(event) => { event.preventDefault(); choose(item.exchangeSymbol, item.stockName); }}
+              >
+                <span className="search-option-name">{item.stockName}</span>
+                <span className="symbol-pill">{item.exchangeSymbol}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="result-box stock-search-panel">

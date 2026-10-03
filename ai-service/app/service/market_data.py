@@ -5,6 +5,8 @@ Market data retrieval service utilizing Alpha Vantage with yfinance fallback.
 
 import re
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict
 import requests
@@ -205,6 +207,8 @@ INDEX_SYMBOLS = {
     "SENSEX": "^BSESN", "BSE SENSEX": "^BSESN",
     "BANKNIFTY": "^NSEBANK", "NIFTY BANK": "^NSEBANK",
     "NIFTYIT": "^CNXIT", "NIFTY IT": "^CNXIT",
+    "NIFTY MIDCAP 150": "NIFTYMIDCAP150.NS", "MIDCAP": "NIFTYMIDCAP150.NS",
+    "NIFTY SMALLCAP 250": "NIFTYSMLCAP250.NS", "SMALLCAP": "NIFTYSMLCAP250.NS",
     "NASDAQ": "^IXIC", "S&P 500": "^GSPC", "SP500": "^GSPC", "DOW": "^DJI",
 }
 
@@ -231,6 +235,7 @@ def fetch_index(name: str) -> Dict[str, Any]:
         return {"error": f"No data for index {name}"}
 
     last, prev = float(closes.iloc[-1]), float(closes.iloc[-2])
+    latest_bar = history.dropna(subset=["Close"]).iloc[-1]
     month_ago = float(closes.iloc[-22]) if len(closes) > 22 else float(closes.iloc[0])
     return {
         "index": name,
@@ -238,6 +243,8 @@ def fetch_index(name: str) -> Dict[str, Any]:
         "level": round(last, 2),
         "day_change": round(last - prev, 2),
         "day_change_percent": round((last / prev - 1) * 100, 2),
+        "day_high": round(float(latest_bar["High"]), 2),
+        "day_low": round(float(latest_bar["Low"]), 2),
         "one_month_change_percent": round((last / month_ago - 1) * 100, 2),
         "week52_high": round(float(closes.max()), 2),
         "week52_low": round(float(closes.min()), 2),
@@ -277,3 +284,82 @@ def fetch_nifty50_movers(top: int = 5) -> Dict[str, Any]:
         "note": "Constituent list is approximate; day change is last close vs previous close.",
         "source": "yfinance",
     }
+
+
+# (name for fetch_index, market-cap segment shown on the dashboard, TradingView chart symbol)
+MARKET_INDICES = [
+    ("Nifty 50", "Large cap", "NSE:NIFTY"),
+    ("Sensex", "Large cap", "BSE:SENSEX"),
+    ("Nifty Midcap 150", "Mid cap", "NSE:NIFTYMIDCAP150"),
+    ("Nifty Smallcap 250", "Small cap", "NSE:NIFTYSMLCAP250"),
+    ("Nifty Bank", "Banking", "NSE:BANKNIFTY"),
+    ("Nifty IT", "IT sector", "NSE:CNXIT"),
+]
+
+
+def fetch_market_overview() -> Dict[str, Any]:
+    """Everything for the dashboard's first page: index levels with day low/high by market-cap segment, plus Nifty 50 movers."""
+    with ThreadPoolExecutor(max_workers=len(MARKET_INDICES) + 1) as pool:
+        index_jobs = [pool.submit(fetch_index, name) for name, _, _ in MARKET_INDICES]
+        movers_job = pool.submit(fetch_nifty50_movers)
+
+        indices = []
+        for (name, cap, chart_symbol), job in zip(MARKET_INDICES, index_jobs):
+            try:
+                data = job.result()
+            except Exception:
+                continue
+            if "error" in data:
+                continue
+            indices.append({**data, "name": name, "cap": cap, "chart_symbol": chart_symbol})
+
+        try:
+            movers = movers_job.result()
+        except Exception as exc:
+            movers = {"error": str(exc)}
+
+    return {
+        "indices": indices,
+        "movers": None if "error" in movers else {key: movers[key] for key in ("stocks_covered", "advancing", "declining", "top_gainers", "top_losers")},
+        "as_of": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# range key -> (yfinance period, bar interval)
+HISTORY_RANGES = {
+    "1d": ("5d", "5m"),  # trimmed to the latest trading session below (period=1d is often empty)
+    "5d": ("5d", "15m"),
+    "1mo": ("1mo", "1d"),
+    "6mo": ("6mo", "1d"),
+    "1y": ("1y", "1d"),
+    "5y": ("5y", "1wk"),
+}
+
+
+def fetch_history(symbol: str, range_key: str) -> Dict[str, Any]:
+    """OHLC + volume bars for a stock or index, for the dashboard price chart."""
+    if range_key not in HISTORY_RANGES:
+        raise ValueError(f"Unknown range '{range_key}'. Use one of: {', '.join(HISTORY_RANGES)}")
+    period, interval = HISTORY_RANGES[range_key]
+    yf_symbol = _to_yf_symbol(symbol)
+
+    history = yf.Ticker(yf_symbol).history(period=period, interval=interval)
+    if history is None or history.empty:
+        raise ValueError(f"No price history found for {symbol}")
+    history = history.dropna(subset=["Close"])
+    if range_key == "1d" and not history.empty:
+        latest_day = history.index[-1].date()
+        history = history[[stamp.date() == latest_day for stamp in history.index]]
+
+    points = [
+        {
+            "t": index.isoformat(),
+            "o": round(float(row["Open"]), 2),
+            "h": round(float(row["High"]), 2),
+            "l": round(float(row["Low"]), 2),
+            "c": round(float(row["Close"]), 2),
+            "v": int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
+        }
+        for index, row in history.iterrows()
+    ]
+    return {"symbol": symbol, "yf_symbol": yf_symbol, "range": range_key, "interval": interval, "points": points}
