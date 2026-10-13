@@ -20,7 +20,9 @@ const GCM_IV_BYTES = 12; // standard nonce size for AES-GCM
 const toBase64 = (buffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
 const fromBase64 = (text) => Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
 
-// Import the server's RSA public key (Base64 X.509/SPKI) so it can lock our AES key.
+// Import the server's RSA public key (Base64 X.509/SPKI) so it can lock our AES key.'
+//it is needed beacuse we cant directly use the public key in base64 format for encryption, we need to 
+//   import it into a CryptoKey object that the Web Crypto API can use.
 function importPublicKey(publicKeyBase64) {
   return crypto.subtle.importKey(
     'spki',
@@ -37,6 +39,7 @@ function importPublicKey(publicKeyBase64) {
  *  - payload: { encryptedKey, iv, ciphertext } to send to the server
  *  - aesKey:  keep it to decrypt the server's reply
  */
+//start
 export async function encryptRequest(data, publicKeyBase64) {
   // 1. Random one-time AES key (extractable so RSA can wrap its raw bytes).
   const aesKey = await crypto.subtle.generateKey(
@@ -46,7 +49,8 @@ export async function encryptRequest(data, publicKeyBase64) {
   );
 
   // 2. Encrypt the message with AES-GCM using a fresh random IV.
-  const iv = crypto.getRandomValues(new Uint8Array(GCM_IV_BYTES));
+  const iv = crypto.getRandomValues(new Uint8Array(GCM_IV_BYTES));4
+  // 3. Lock the AES key with the server's RSA public key.
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     aesKey,

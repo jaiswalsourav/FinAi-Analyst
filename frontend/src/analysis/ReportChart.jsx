@@ -23,6 +23,48 @@ function buildSeries(table, columnIndex) {
   return { points: rows.map((row, index) => ({ ...row, index })), timed };
 }
 
+const PALETTE = ['#3987e5', '#f0a43a', '#4ade80', '#c084fc', '#f87171', '#22d3ee'];
+const seriesColor = (position) => PALETTE[position % PALETTE.length];
+const ALL = 'all';
+
+// Every metric in one dataset. Metrics differ in scale (Rs Cr vs Rs per share), so each is plotted as % of its own
+// peak (n<i>) while the tooltip keeps the real values (v<i>).
+function buildCombined(table, columns) {
+  const rows = table.rows.map((row, order) => ({ name: stripMarkdown(row[0] ?? ''), key: timeKey(row[0] ?? ''), order, row }));
+  const timed = rows.length > 1 && rows.every((row) => row.key !== null);
+  if (timed) rows.sort((a, b) => a.key - b.key);
+  const peaks = columns.map((column) => Math.max(0, ...rows.map((row) => Math.abs(parseNumber(row.row[column.index] ?? '') ?? 0))));
+  const data = rows.map((row) => {
+    const point = { name: row.name };
+    columns.forEach((column, position) => {
+      const value = parseNumber(row.row[column.index] ?? '');
+      point[`v${position}`] = value;
+      point[`n${position}`] = value === null || !peaks[position] ? null : (value / peaks[position]) * 100;
+    });
+    return point;
+  });
+  return { data, timed };
+}
+
+function CombinedTooltip({ active, payload, label, columns }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div className="viz-tooltip">
+      <div className="viz-tooltip-label">{label}</div>
+      {columns.map((column, position) => (
+        point[`v${position}`] === null || point[`v${position}`] === undefined ? null : (
+          <div className="viz-tooltip-row" key={column.index}>
+            <span className="viz-key" style={{ background: seriesColor(position) }} />
+            <strong>{full(point[`v${position}`])}</strong>
+            <span className="viz-tooltip-unit">{column.name}</span>
+          </div>
+        )
+      ))}
+    </div>
+  );
+}
+
 function ChartTooltip({ active, payload, unit, showDelta }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
@@ -43,15 +85,17 @@ function ChartTooltip({ active, payload, unit, showDelta }) {
   );
 }
 
-export default function ReportChart({ table, columns, expanded = false }) {
+export default function ReportChart({ table, columns, expanded = false, initialActive }) {
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(columns[0].index);
+  const [active, setActive] = useState(initialActive ?? (columns.length > 1 ? ALL : columns[0].index));
   const [mode, setMode] = useState(null); // null = auto (line for time series, bars otherwise)
   const [hover, setHover] = useState(null);
 
+  const isAll = active === ALL && columns.length > 1;
   const column = columns.find((item) => item.index === active) || columns[0];
+  const combined = useMemo(() => (isAll ? buildCombined(table, columns) : null), [isAll, table, columns]);
   const { points, timed } = useMemo(() => buildSeries(table, column.index), [table, column.index]);
-  const chartMode = mode || (timed && points.length >= 3 ? 'line' : 'bars');
+  const chartMode = mode || ((isAll ? combined.timed && combined.data.length >= 3 : timed && points.length >= 3) ? 'line' : 'bars');
 
   const data = useMemo(() => points.map((point, index) => {
     const before = index > 0 ? points[index - 1] : null;
@@ -59,7 +103,7 @@ export default function ReportChart({ table, columns, expanded = false }) {
     return { ...point, delta, prev: before?.name };
   }), [points, timed]);
 
-  if (data.length < 2) return null;
+  if ((isAll ? combined.data.length : data.length) < 2) return null;
 
   // Compact in the chat; the enlarged popup is tall (portrait)
   const chartHeight = expanded ? Math.max(380, Math.round(window.innerHeight * 0.6)) : 240;
@@ -88,8 +132,11 @@ export default function ReportChart({ table, columns, expanded = false }) {
     <div className={`report-chart viz${expanded ? ' viz-expanded' : ''}`}>
       <div className="viz-head">
         <div>
-          <div className="viz-title">{column.name}</div>
-          <div className="viz-sub">{data.length} {timed ? 'periods' : 'items'} · hover for details</div>
+          <div className="viz-title">{isAll ? 'All metrics' : column.name}</div>
+          <div className="viz-sub">
+            {isAll ? combined.data.length : data.length} {(isAll ? combined.timed : timed) ? 'periods' : 'items'} · hover for details
+            {isAll && ' · each metric scaled to its own peak'}
+          </div>
         </div>
         <div className="viz-controls">
           <div className="viz-seg" role="group" aria-label="Chart type">
@@ -105,23 +152,48 @@ export default function ReportChart({ table, columns, expanded = false }) {
 
       {columns.length > 1 && (
         <div className="viz-legend" role="tablist" aria-label="Metric">
-          {columns.map((item) => (
+          <button type="button" role="tab" aria-selected={isAll} className={isAll ? 'on' : ''} onClick={() => { setActive(ALL); setHover(null); }}>
+            <span className="viz-key" />All
+          </button>
+          {columns.map((item, position) => (
             <button
               key={item.index}
               type="button"
               role="tab"
-              aria-selected={item.index === column.index}
-              className={item.index === column.index ? 'on' : ''}
+              aria-selected={!isAll && item.index === column.index}
+              className={!isAll && item.index === column.index ? 'on' : ''}
               onClick={() => { setActive(item.index); setHover(null); }}
             >
-              <span className="viz-key" />{item.name}
+              <span className="viz-key" style={{ background: seriesColor(position) }} />{item.name}
             </button>
           ))}
         </div>
       )}
 
       <ResponsiveContainer width="100%" height={chartHeight}>
-        {chartMode === 'line' ? (
+        {isAll ? (
+          chartMode === 'line' ? (
+            <ComposedChart data={combined.data} margin={{ top: 16, right: 20, left: 0, bottom: 0 }}>
+              {grid}
+              <XAxis dataKey="name" {...axis} padding={{ left: 16, right: 16 }} />
+              <YAxis {...axis} axisLine={false} width={44} tickFormatter={(v) => `${Math.round(v)}%`} />
+              <Tooltip cursor={{ stroke: 'var(--viz-axis)', strokeWidth: 1 }} content={<CombinedTooltip columns={columns} />} isAnimationActive={false} />
+              {columns.map((item, position) => (
+                <Line key={item.index} type="monotone" dataKey={`n${position}`} name={item.name} connectNulls stroke={seriesColor(position)} strokeWidth={2} dot={{ r: 3, fill: seriesColor(position), stroke: 'var(--viz-surface)', strokeWidth: 1 }} activeDot={{ r: 5, stroke: 'var(--viz-surface)', strokeWidth: 2 }} isAnimationActive={false} />
+              ))}
+            </ComposedChart>
+          ) : (
+            <BarChart data={combined.data} margin={{ top: 16, right: 12, left: 0, bottom: 0 }} barCategoryGap="18%">
+              {grid}
+              <XAxis dataKey="name" {...axis} interval={0} tickFormatter={(label) => (label.length > 12 ? `${label.slice(0, 11)}…` : label)} />
+              <YAxis {...axis} axisLine={false} width={44} tickFormatter={(v) => `${Math.round(v)}%`} />
+              <Tooltip cursor={{ fill: 'var(--viz-hover)' }} content={<CombinedTooltip columns={columns} />} isAnimationActive={false} />
+              {columns.map((item, position) => (
+                <Bar key={item.index} dataKey={`n${position}`} name={item.name} fill={seriesColor(position)} maxBarSize={18} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+              ))}
+            </BarChart>
+          )
+        ) : chartMode === 'line' ? (
           <ComposedChart data={data} margin={{ top: 26, right: 20, left: 0, bottom: 0 }}>
             {grid}
             <XAxis dataKey="name" {...axis} padding={{ left: 16, right: 16 }} />
@@ -155,8 +227,8 @@ export default function ReportChart({ table, columns, expanded = false }) {
       </ResponsiveContainer>
 
       {open && (
-        <ChartModal title={column.name} onClose={() => setOpen(false)}>
-          <ReportChart table={table} columns={columns} expanded />
+        <ChartModal title={isAll ? 'All metrics' : column.name} onClose={() => setOpen(false)}>
+          <ReportChart table={table} columns={columns} expanded initialActive={active} />
         </ChartModal>
       )}
     </div>

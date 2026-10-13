@@ -121,7 +121,7 @@ export function useAppController() {
       setError('Unable to create user.');
     }
   };
-
+ // Handle password reset request
   const handleForgotPassword = async (event) => {
     event.preventDefault();
     const email = auth.resetEmail.trim().toLowerCase();
@@ -133,9 +133,11 @@ export function useAppController() {
     try {
       const { response, data } = await requestPasswordReset(email);
       if (!response.ok) {
-        setError(data.message || 'Unable to request password reset.');
+        // The backend answers 404 when no account exists for this email.
+        setError(response.status === 404 ? 'User not found.' : data.message || 'Unable to request password reset.');
         return;
       }
+      // Clear the reset password fields and show the token to the user
       setError('');
       setMessage('Password reset token created. Use the token below to reset your password.');
       setAuthValue('resetToken', data.token || '');
@@ -145,7 +147,7 @@ export function useAppController() {
       setError('Unable to request password reset.');
     }
   };
-
+  // Handle password reset submission
   const handleResetPassword = async (event) => {
     event.preventDefault();
     const password = auth.resetNewPassword.trim();
@@ -157,13 +159,14 @@ export function useAppController() {
       setError('Passwords do not match.');
       return;
     }
-
+// Handle password reset submission
     try {
       const { response, data } = await resetPassword(auth.resetToken.trim(), password);
       if (!response.ok) {
         setError(data.message || 'Unable to reset password.');
         return;
       }
+      // Clear the reset password fields and show a success message
       ['resetToken', 'resetNewPassword', 'resetConfirmPassword', 'resetEmail'].forEach((field) => setAuthValue(field, ''));
       setError('');
       setMessage('Your password has been reset. Please sign in with your new password.');

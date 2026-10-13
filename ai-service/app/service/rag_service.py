@@ -25,7 +25,8 @@ class RAGManager:
 
         self.embeddings = GoogleGenerativeAIEmbeddings(
             model=settings.EMBEDDING_MODEL,
-            google_api_key=self.api_key
+            google_api_key=self.api_key,
+            output_dimensionality=settings.EMBEDDING_DIMENSIONS,
         )
 
         self._init_vector_store()

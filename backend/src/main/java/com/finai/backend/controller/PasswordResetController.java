@@ -64,6 +64,7 @@ public class PasswordResetController {
      */
     @PostMapping("/reset-password")
     public EncryptedPayload resetPassword(@RequestBody EncryptedPayload encryptedRequest) {
+        // 1. Decrypt and validate the timestamp.
         EncryptedExchange.Call<ResetPasswordRequest> call =
                 exchange.open(encryptedRequest, ResetPasswordRequest.class);
         ResetPasswordRequest request = call.request();

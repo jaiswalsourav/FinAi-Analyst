@@ -1,9 +1,18 @@
 // Everything goes through the backend, which checks the login token and talks to the AI service
 // on the browser's behalf (the AI service itself requires a secret key and is never called directly).
 import { BACKEND_URL } from './config';
+import { store } from '../store/store';
+import { clearSession } from '../store/authSlice';
+import { resetDashboard } from '../store/dashboardSlice';
 
 async function parseResponse(response) {
   const data = await response.json().catch(() => ({}));
+  // The backend rejects an invalid or expired token with 401/403: go back to the login screen
+  if ((response.status === 401 || response.status === 403) && store.getState().auth.token) {
+    store.dispatch(clearSession());
+    store.dispatch(resetDashboard());
+    throw new Error('Your session has expired. Please sign in again.');
+  }
   if (!response.ok) {
     throw new Error(data.error || data.message || data.detail || `Request failed with ${response.status}`);
   }
