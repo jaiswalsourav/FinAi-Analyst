@@ -26,6 +26,7 @@ class RAGManager:
         self.embeddings = GoogleGenerativeAIEmbeddings(
             model=settings.EMBEDDING_MODEL,
             google_api_key=self.api_key,
+            # Vector size must stay the same as what is already stored in Chroma (see config.py)
             output_dimensionality=settings.EMBEDDING_DIMENSIONS,
         )
 

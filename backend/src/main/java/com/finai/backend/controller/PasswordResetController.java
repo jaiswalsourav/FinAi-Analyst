@@ -15,7 +15,8 @@ import org.springframework.web.server.ResponseStatusException;
  * Forgot-password / reset-password flow. Both endpoints use hybrid encryption
  * (see {@link com.finai.backend.security.HybridCrypto}): the request body is an
  * EncryptedPayload and so is the response, because the reset token and the new
- * password must never travel in readable form.
+ * password must never travel in readable form. The token itself only reaches the
+ * user by email (see {@link com.finai.backend.service.PasswordResetMailer}).
  */
 @RestController
 @RequestMapping("/api")
@@ -40,22 +41,16 @@ public class PasswordResetController {
                 exchange.open(encryptedRequest, ForgotPasswordRequest.class);
         ForgotPasswordRequest request = call.request();
         if (request.getEmail() == null || request.getEmail().isBlank()) {
-            System.out.println("Forgot password request failed: email is required.");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required.");
         }
 
-        // 2. Business logic: create the reset token.
-        PasswordResetResponse response;
-        try {
-            String token = userService.createPasswordResetToken(request.getEmail());
-            System.out.println("Password reset token created for email=" + request.getEmail());
-            response = new PasswordResetResponse(request.getEmail(), token, "Password reset token created. Use this token to reset your password.");
-        } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
-        }
+        // 2. Email the reset link to the account owner. The token is never put in the response,
+        //    and the reply is the same whether the account exists or not.
+        userService.requestPasswordReset(request.getEmail());
 
-        // 3. Encrypt the reply (it contains the reset token).
-        return exchange.reply(response, call);
+        // 3. Encrypt the reply.
+        return exchange.reply(new PasswordResetResponse(
+                "If an account exists for this email, a password reset link has been sent to it."), call);
     }
 
     /**
@@ -75,8 +70,7 @@ public class PasswordResetController {
 
         try {
             userService.resetPassword(request.getToken(), request.getPassword());
-            System.out.println("Password reset successfully for email=");
-            return exchange.reply(new PasswordResetResponse(null, null, "Password reset successfully."), call);
+            return exchange.reply(new PasswordResetResponse("Password reset successfully."), call);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
         }
@@ -102,18 +96,12 @@ public class PasswordResetController {
     }
 
     public static class PasswordResetResponse {
-        private final String email;
-        private final String token;
         private final String message;
 
-        public PasswordResetResponse(String email, String token, String message) {
-            this.email = email;
-            this.token = token;
+        public PasswordResetResponse(String message) {
             this.message = message;
         }
 
-        public String getEmail() { return email; }
-        public String getToken() { return token; }
         public String getMessage() { return message; }
     }
 }

@@ -1,6 +1,7 @@
 package com.finai.backend.config;
 
 import com.finai.backend.security.JwtAuthFilter;
+import com.finai.backend.security.RateLimitFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,15 +55,17 @@ public class SecurityConfig {
                     "/api/health"
                 ).permitAll()
                 .requestMatchers("search/**").authenticated()
-                // NOTE: must stay ABOVE the /api/users ADMIN rule below —
-                // authorizeHttpRequests matches in order, first match wins.
-                .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(
                 jwtAuthFilter,
                 UsernamePasswordAuthenticationFilter.class
+            )
+            // After the JWT filter so signed-in users are limited per account
+            .addFilterAfter(
+                new RateLimitFilter(),
+                JwtAuthFilter.class
             );
 
         return http.build();

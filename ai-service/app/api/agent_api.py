@@ -70,6 +70,7 @@ def ask_agent(req: AgentAskRequest):
     for model_name in [settings.MODEL_NAME, *settings.FALLBACK_MODELS]:
         # One chat per (session, model): a model's chat can't continue on another model
         key = f"{req.session_id}::{model_name}"
+        # The model may stall or run out of quota, so we try the next one in the fallback list.
         try:
             if key not in session_store:
                 session_store[key] = _get_model(model_name).start_chat(
@@ -77,6 +78,8 @@ def ask_agent(req: AgentAskRequest):
                 )
             chat = session_store[key]
             history_start = len(chat.history)
+            # The chat.send_message call may stall, so we run it in a thread and enforce a timeout.
+            # future.result() will raise FutureTimeout if the call takes too long, and we can then try the next model.
             future = _executor.submit(
                 chat.send_message, full_prompt, request_options={"timeout": GEMINI_CALL_TIMEOUT_S}
             )

@@ -60,6 +60,10 @@ public class UserController {
                     System.out.println("Registration failed: email, name, and password are required.");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email, name, and password are required.");
         }
+        if (request.getPassword().length() < UserService.MIN_PASSWORD_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Password must be at least " + UserService.MIN_PASSWORD_LENGTH + " characters.");
+        }
 
           // Check if the user already exists
         if (userService.existsByEmail(request.getEmail())) {

@@ -15,6 +15,9 @@ import {
 import { clearSession, setAuthField } from '../store/authSlice';
 import { addMessages, clearMessages, resetDashboard, setDashboardField, updateMessage } from '../store/dashboardSlice';
 
+// Must match UserService.MIN_PASSWORD_LENGTH in the backend
+const MIN_PASSWORD_LENGTH = 8;
+
 export function useAppController() {
   const dispatch = useDispatch();
 
@@ -90,6 +93,10 @@ export function useAppController() {
       setError('Passwords do not match.');
       return;
     }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
 
     try {
 
@@ -133,15 +140,13 @@ export function useAppController() {
     try {
       const { response, data } = await requestPasswordReset(email);
       if (!response.ok) {
-        // The backend answers 404 when no account exists for this email.
-        setError(response.status === 404 ? 'User not found.' : data.message || 'Unable to request password reset.');
+        setError(data.message || 'Unable to request password reset.');
         return;
       }
-      // Clear the reset password fields and show the token to the user
+      // The token is emailed, never returned. The email's link reopens the app on the reset
+      // page with the token filled in (see readResetLink in store.js).
       setError('');
-      setMessage('Password reset token created. Use the token below to reset your password.');
-      setAuthValue('resetToken', data.token || '');
-      setAuthValue('view', 'reset-password');
+      setMessage(data.message || 'If an account exists for this email, a password reset link has been sent to it.');
     } catch (error) {
       console.error('Forgot password failed', error);
       setError('Unable to request password reset.');
@@ -157,6 +162,10 @@ export function useAppController() {
     }
     if (password !== auth.resetConfirmPassword) {
       setError('Passwords do not match.');
+      return;
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
 // Handle password reset submission

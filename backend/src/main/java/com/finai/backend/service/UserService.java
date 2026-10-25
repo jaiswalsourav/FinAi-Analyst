@@ -5,20 +5,31 @@ import com.finai.backend.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class UserService {
 
+    public static final int MIN_PASSWORD_LENGTH = 8;
+
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordResetMailer resetMailer;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, PasswordResetMailer resetMailer) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.resetMailer = resetMailer;
     }
 
     public UserEntity createUser(String name, String email, String password, String role) {
@@ -31,35 +42,37 @@ public class UserService {
     }
 
     public Optional<UserEntity> findByEmail(String email) {
-        System.out.println("Finding user by email: " + email);
         return userRepository.findByEmail(email.trim().toLowerCase());
     }
 
     public boolean existsByEmail(String email) {
-        System.out.println("Checking if user exists by email: " + email);
         return findByEmail(email).isPresent();
     }
 
-    public String createPasswordResetToken(String email) {
-        System.out.println("Creating password reset token for email: " + email);    
-        UserEntity user = findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+    /**
+     * Emails a reset link if the account exists. Says nothing either way, so the
+     * endpoint can't be used to find out which emails are registered.
+     */
+    public void requestPasswordReset(String email) {
+        findByEmail(email).ifPresent(user -> {
+            byte[] bytes = new byte[32];
+            RANDOM.nextBytes(bytes);
+            String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 
-        String token = UUID.randomUUID().toString();
-        user.setPasswordResetToken(token);
-        user.setPasswordResetExpiration(LocalDateTime.now().plusHours(1));
-        userRepository.save(user);
+            // Only the hash is stored, so a database leak doesn't expose usable tokens
+            user.setPasswordResetToken(hashToken(token));
+            user.setPasswordResetExpiration(LocalDateTime.now().plusHours(1));
+            userRepository.save(user);
 
-        return token;
-    }
-
-    public Optional<UserEntity> findByResetToken(String token) {
-        System.out.println("Finding user by reset token: " + token);
-        return userRepository.findByPasswordResetToken(token);
+            resetMailer.sendResetLink(user.getEmail(), token);
+        });
     }
 
     public void resetPassword(String token, String newPassword) {
-        UserEntity user = findByResetToken(token)
+        if (newPassword.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException("Password must be at least " + MIN_PASSWORD_LENGTH + " characters.");
+        }
+        UserEntity user = userRepository.findByPasswordResetToken(hashToken(token))
                 .orElseThrow(() -> new IllegalArgumentException("Invalid or expired token."));
 
         if (user.getPasswordResetExpiration() == null || user.getPasswordResetExpiration().isBefore(LocalDateTime.now())) {
@@ -73,7 +86,15 @@ public class UserService {
     }
 
     public List<UserEntity> listUsers() {
-        System.out.println("Listing all users.");
         return userRepository.findAll();
+    }
+
+    private static String hashToken(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

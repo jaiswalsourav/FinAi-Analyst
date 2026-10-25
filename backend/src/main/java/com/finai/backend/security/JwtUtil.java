@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,17 @@ public class JwtUtil {
 
     @Value("${jwt.expiration-ms}")
     private long expirationMs;
+
+    // Fail at startup, not on the first login, if the signing key is missing, short or a known placeholder
+    @PostConstruct
+    void checkSecret() {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET must be at least 32 bytes long.");
+        }
+        if (secret.startsWith("your-super-long-random-secret") || secret.startsWith("replace_with_")) {
+            throw new IllegalStateException("JWT_SECRET is still the example value; set a random secret.");
+        }
+    }
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(
