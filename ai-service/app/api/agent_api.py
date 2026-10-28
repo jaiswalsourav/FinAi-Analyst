@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 import google.generativeai as genai
 
 from app.core.config import settings
-from app.core.cache import session_store
+from app.core.cache import session_lock, session_store
 from app.core.prompts import SYSTEM_PROMPT
 from app.schemas.agent import AgentAskRequest, AgentAskResponse
 from app.service.market_data import _to_yf_symbol
@@ -72,11 +72,13 @@ def ask_agent(req: AgentAskRequest):
         key = f"{req.session_id}::{model_name}"
         # The model may stall or run out of quota, so we try the next one in the fallback list.
         try:
-            if key not in session_store:
-                session_store[key] = _get_model(model_name).start_chat(
-                    enable_automatic_function_calling=True
-                )
-            chat = session_store[key]
+            with session_lock:
+                chat = session_store.get(key)
+                if chat is None:
+                    chat = _get_model(model_name).start_chat(enable_automatic_function_calling=True)
+                # Storing it again restarts the 1-hour timer, so an active conversation isn't dropped
+                session_store[key] = chat
+
             history_start = len(chat.history)
             # The chat.send_message call may stall, so we run it in a thread and enforce a timeout.
             # future.result() will raise FutureTimeout if the call takes too long, and we can then try the next model.
@@ -87,7 +89,8 @@ def ask_agent(req: AgentAskRequest):
                 response = future.result(timeout=max(5, deadline - time.monotonic()))
             except FutureTimeout:
                 # The worker may still be running; drop the chat so it can't be reused half-finished
-                session_store.pop(key, None)
+                with session_lock:
+                    session_store.pop(key, None)
                 raise HTTPException(
                     status_code=504,
                     detail="The AI took too long to answer. Please try again or ask a simpler question.",

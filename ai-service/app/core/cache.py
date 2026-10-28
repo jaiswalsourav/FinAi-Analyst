@@ -2,8 +2,8 @@
 app/core/cache.py
 Centralized in-memory TTL caches and session state storage.
 """
+import threading
 
-from typing import Any, Dict
 from cachetools import TTLCache
 
 # Real-time stock quote cache (2-minute TTL, max 250 symbols)
@@ -24,8 +24,11 @@ history_cache: TTLCache = TTLCache(maxsize=300, ttl=120)
 # Company news headlines (10-minute TTL, max 200 symbols)
 news_cache: TTLCache = TTLCache(maxsize=200, ttl=600)
 
-# Multi-turn Gemini ChatSession objects keyed by session_id
-session_store: Dict[str, Any] = {}
+# Multi-turn Gemini ChatSession objects keyed by "session::model".
+# A chat unused for 1 hour is dropped, and at most 1000 are kept, so memory stays bounded.
+session_store: TTLCache = TTLCache(maxsize=1000, ttl=3600)
+# TTLCache isn't thread-safe and FastAPI runs requests in parallel threads
+session_lock = threading.Lock()
 
 
 def clear_all_caches() -> None:
